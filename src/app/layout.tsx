@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AppProvider } from '@/context/app-provider';
 
 export const metadata: Metadata = {
-  title: 'ChitChat',
+  title: 'GramTalk',
   description: 'A modern chat application.',
 };
 

@@ -89,7 +89,7 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
       
       toast({
         title: 'Profile Saved',
-        description: "Welcome to ChitChat! Let's get you connected.",
+        description: "Welcome to GramTalk! Let's get you connected.",
       });
       
       showModal(null);

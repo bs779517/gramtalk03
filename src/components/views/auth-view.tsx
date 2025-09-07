@@ -80,7 +80,7 @@ export function AuthView() {
         {view === 'initial' && (
             <div className="w-full max-w-sm text-center">
                 <MessageCircle className="h-16 w-16 text-primary mx-auto" />
-                <h1 className="text-4xl font-bold text-primary mt-2">ChitChat</h1>
+                <h1 className="text-4xl font-bold text-primary mt-2">GramTalk</h1>
                 <p className="text-muted-foreground mb-8">A modern chat application.</p>
                 <div className="space-y-4">
                     <Button className="w-full" size="lg" onClick={() => setView('login')}>Log In</Button>

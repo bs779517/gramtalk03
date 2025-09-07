@@ -366,7 +366,7 @@ export function MainView() {
   return (
     <div className="flex flex-col h-full bg-background">
       <header className="bg-primary text-primary-foreground p-4 flex justify-between items-center shadow-md">
-        <h1 className="text-xl font-bold">ChitChat</h1>
+        <h1 className="text-xl font-bold">GramTalk</h1>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('addFriend')}>
             <UserPlus />
