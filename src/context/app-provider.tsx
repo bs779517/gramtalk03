@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, onValue, off, remove, set, push, get as getDb } from 'firebase/database';
+import { ref, onValue, off, remove, set, push, get as getDb, serverTimestamp, onDisconnect } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
 import type { FirebaseUser, UserProfile, Call, CallHistoryItem, Group } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -277,6 +277,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   
 
   const logout = useCallback(async () => {
+    if(firebaseUser) {
+        const userStatusRef = ref(db, `users/${firebaseUser.uid}`);
+        await set(userStatusRef, { ...profile, onlineStatus: 'offline', lastSeen: Date.now() });
+    }
     await auth.signOut();
     cleanupCall();
     setFirebaseUser(null);
@@ -286,7 +290,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setChatPartner(null);
     setGroupChat(null);
     setActiveModal(null);
-  }, [cleanupCall]);
+  }, [cleanupCall, firebaseUser, profile]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -303,10 +307,27 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (!firebaseUser) return;
+    
+    // Set up presence management
+    const userStatusRef = ref(db, `users/${firebaseUser.uid}`);
+    const connectedRef = ref(db, '.info/connected');
+    
+    const listener = onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        const con = onDisconnect(userStatusRef);
+        con.update({ onlineStatus: 'offline', lastSeen: Date.now() });
+        set(userStatusRef, { ...profile, onlineStatus: 'online' });
+      }
+    });
+
     const usersRef = ref(db, 'users');
     const usersListener = onValue(usersRef, (snapshot) => setAllUsers(snapshot.val() || {}));
-    return () => off(usersRef, 'value', usersListener);
-  }, [firebaseUser]);
+    
+    return () => {
+        off(usersRef, 'value', usersListener);
+        off(connectedRef, 'value', listener)
+    };
+  }, [firebaseUser, profile]);
 
   useEffect(() => {
     let profileUnsubscribe: () => void;

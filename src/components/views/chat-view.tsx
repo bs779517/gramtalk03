@@ -11,7 +11,7 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, off, push, serverTimestamp, set } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 export function ChatView() {
   const { firebaseUser, profile, chatPartner, groupChat, setActiveView, startCall, allUsers } = useApp();
@@ -21,6 +21,8 @@ export function ChatView() {
 
   const isGroupChat = !!groupChat;
   const chatTarget = groupChat || chatPartner;
+  const chatPartnerProfile = allUsers && chatPartner ? allUsers[chatPartner.uid] : null;
+
 
   const chatId = React.useMemo(() => {
     if (!firebaseUser || !chatTarget) return null;
@@ -96,6 +98,19 @@ export function ChatView() {
     if (!allUsers) return null;
     return allUsers[fromUid] || null;
   };
+  
+  const getStatus = () => {
+      if (isGroupChat) {
+          return `${Object.keys(groupChat.members).length} members`;
+      }
+      if (chatPartnerProfile?.onlineStatus === 'online') {
+          return 'Online';
+      }
+      if (chatPartnerProfile?.lastSeen) {
+          return `Last seen ${formatDistanceToNow(chatPartnerProfile.lastSeen, { addSuffix: true })}`;
+      }
+      return `@${(chatTarget as UserProfile).username}`;
+  }
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -103,17 +118,18 @@ export function ChatView() {
         <Button variant="ghost" size="icon" onClick={() => setActiveView('main')}>
           <ArrowLeft />
         </Button>
-        <Avatar>
-          <AvatarImage src={isGroupChat ? groupChat.photoURL ?? undefined : (chatPartner as UserProfile)?.photoURL ?? undefined} />
-          <AvatarFallback>{chatTarget.name.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar>
+            <AvatarImage src={isGroupChat ? groupChat.photoURL ?? undefined : (chatPartner as UserProfile)?.photoURL ?? undefined} />
+            <AvatarFallback>{chatTarget.name.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+           {!isGroupChat && chatPartnerProfile?.onlineStatus === 'online' && (
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-secondary" />
+            )}
+        </div>
         <div className="flex-grow">
           <p className="font-semibold">{chatTarget.name}</p>
-          {isGroupChat ? (
-             <p className="text-xs text-muted-foreground">{Object.keys(groupChat.members).length} members</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">@{ (chatTarget as UserProfile).username}</p>
-          )}
+           <p className="text-xs text-muted-foreground">{getStatus()}</p>
         </div>
         {isGroupChat ? (
              <Button variant="ghost" size="icon">

@@ -18,7 +18,7 @@ import CreateGroupModal from '../modals/create-group-modal';
 import { useToast } from '@/hooks/use-toast';
 
 export function MainView() {
-  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat } = useApp();
+  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat, allUsers } = useApp();
   const [activeTab, setActiveTab] = useState('chats');
   const [contacts, setContacts] = useState<UserProfile[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -218,12 +218,19 @@ export function MainView() {
         return (
           <div className="p-2">
             {contacts.length > 0 ? (
-              contacts.map(contact => (
+              contacts.map(contact => {
+                const user = allUsers ? allUsers[contact.uid] : contact;
+                return (
                 <div key={contact.uid} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openChat(contact)}>
-                  <Avatar>
-                    <AvatarImage src={contact.photoURL ?? undefined} alt={contact.name} />
-                    <AvatarFallback>{contact.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar>
+                      <AvatarImage src={contact.photoURL ?? undefined} alt={contact.name} />
+                      <AvatarFallback>{contact.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                     {user?.onlineStatus === 'online' && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                      )}
+                  </div>
                   <div className="ml-3 flex-grow">
                     <p className="font-semibold">{contact.name}</p>
                     <p className="text-xs text-muted-foreground">@{contact.username}</p>
@@ -232,7 +239,8 @@ export function MainView() {
                     <Badge variant="default">{unreadMessages[contact.uid]}</Badge>
                   )}
                 </div>
-              ))
+                )
+              })
             ) : (
               <p className="text-center text-muted-foreground p-8">No contacts yet. Add friends from the Updates tab!</p>
             )}
@@ -385,12 +393,12 @@ export function MainView() {
         <NavButton tabName="calls" icon={<Phone />} label="Calls" />
       </div>
 
-      {profile && (
+      {profile && allUsers && (
         <CreateGroupModal
           isOpen={isCreateGroupModalOpen}
           onClose={() => setCreateGroupModalOpen(false)}
           currentUser={profile}
-          contacts={contacts}
+          contacts={contacts.map(c => allUsers[c.uid]).filter(Boolean) as UserProfile[]}
         />
       )}
     </div>
