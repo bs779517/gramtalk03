@@ -61,6 +61,11 @@ export interface CallHistoryItem {
 
 export type GroupMemberRole = 'admin' | 'member';
 
+export interface GroupMember {
+    uid: string;
+    role: GroupMemberRole;
+}
+
 export interface Group {
   id: string;
   name: string;

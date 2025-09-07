@@ -141,7 +141,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
               <Avatar className="w-24 h-24 cursor-pointer relative group" onClick={() => fileInputRef.current?.click()}>
                 <AvatarImage src={groupPhoto ?? undefined} alt="Group Photo" />
                 <AvatarFallback className="text-4xl">
-                  {form.watch('groupName')?.charAt(0) || '?'}
+                  {(form.watch('groupName') || '').charAt(0) || '?'}
                 </AvatarFallback>
                 <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                   <Camera className="text-white" />
@@ -198,7 +198,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
                                   return checked
                                     ? field.onChange([...(field.value || []), contact.uid])
                                     : field.onChange(
-                                        field.value?.filter(
+                                        (field.value || []).filter(
                                           (value) => value !== contact.uid
                                         )
                                       )
