@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, onValue, off, remove, set, push } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
-import type { FirebaseUser, UserProfile, Call, CallHistoryItem } from '@/lib/types';
+import type { FirebaseUser, UserProfile, Call, CallHistoryItem, Group } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 type View = 'auth' | 'main' | 'chat';
@@ -32,6 +32,8 @@ interface AppContextType {
   
   chatPartner: UserProfile | null;
   setChatPartner: (user: UserProfile | null) => void;
+  groupChat: Group | null;
+  setGroupChat: (group: Group | null) => void;
 
   incomingCall: Call | null;
   setIncomingCall: (call: Call | null) => void;
@@ -63,7 +65,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [activeView, setActiveView] = useState<View>('auth');
   const [activeModal, setActiveModal] = useState<ModalType>(null);
-  const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
+  const [chatPartner, setChatPartnerInternal] = useState<UserProfile | null>(null);
+  const [groupChat, setGroupChatInternal] = useState<Group | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
 
   // WebRTC State
@@ -75,6 +78,16 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
 
   const { toast } = useToast();
+
+  const setChatPartner = (user: UserProfile | null) => {
+    if (user) setGroupChatInternal(null);
+    setChatPartnerInternal(user);
+  };
+
+  const setGroupChat = (group: Group | null) => {
+    if (group) setChatPartnerInternal(null);
+    setGroupChatInternal(group);
+  };
 
   const cleanupCall = useCallback(() => {
     if (peerConnection) {
@@ -258,6 +271,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setAllUsers(null);
     setActiveView('auth');
     setChatPartner(null);
+    setGroupChat(null);
     setActiveModal(null);
   }, [cleanupCall]);
 
@@ -311,7 +325,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   
   const value = {
     firebaseUser, profile, allUsers, isLoading, activeView, setActiveView, activeModal, showModal,
-    chatPartner, setChatPartner, incomingCall, setIncomingCall, logout,
+    chatPartner, setChatPartner, groupChat, setGroupChat, incomingCall, setIncomingCall, logout,
     activeCall, localStream, remoteStream, isMuted, isVideoEnabled, toggleMute, toggleVideo,
     startCall, acceptCall, rejectCall, endCall
   };
@@ -333,3 +347,5 @@ async function get(ref: any) {
     }, { onlyOnce: true });
   });
 }
+
+    

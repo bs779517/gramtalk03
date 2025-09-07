@@ -4,23 +4,53 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreVertical, UserPlus, Phone, Video, MessageSquare } from 'lucide-react';
+import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { onValue, ref, off, query, orderByChild, equalTo, remove } from 'firebase/database';
-import type { UserProfile, FriendRequest, CallHistoryItem } from '@/lib/types';
+import type { UserProfile, FriendRequest, CallHistoryItem, Group } from '@/lib/types';
 import { FriendSuggestions } from '@/components/friend-suggestions';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+import CreateGroupModal from '../modals/create-group-modal';
 
 export function MainView() {
-  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall } = useApp();
+  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat } = useApp();
+  const [activeTab, setActiveTab] = useState('chats');
   const [contacts, setContacts] = useState<UserProfile[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([]);
   const [unreadMessages, setUnreadMessages] = useState<Record<string, number>>({});
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [isCreateGroupModalOpen, setCreateGroupModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!firebaseUser || !profile) return;
+
+    // Listen for groups
+    const userGroupsRef = ref(db, `users/${firebaseUser.uid}/groups`);
+    const groupsListener = onValue(userGroupsRef, (snapshot) => {
+      const groupIds = snapshot.val() ? Object.keys(snapshot.val()) : [];
+      const groupPromises = groupIds.map(id => 
+        new Promise<Group | null>((resolve) => {
+          onValue(ref(db, `groups/${id}`), (groupSnap) => {
+            if (groupSnap.exists()) {
+              resolve({ id, ...groupSnap.val()});
+            } else {
+              resolve(null);
+            }
+          }, { onlyOnce: true });
+        })
+      );
+      Promise.all(groupPromises).then(groupsData => {
+        setGroups(groupsData.filter(Boolean) as Group[]);
+      });
+    });
+
+    return () => off(userGroupsRef, 'value', groupsListener);
+  }, [firebaseUser, profile]);
+
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -96,38 +126,35 @@ export function MainView() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-full bg-background">
-      <header className="bg-primary text-primary-foreground p-4 flex justify-between items-center shadow-md">
-        <h1 className="text-xl font-bold">ChitChat</h1>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('addFriend')}>
-            <UserPlus />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('profileView')}>
-            <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-primary-foreground text-primary text-xs font-bold">
-                {profile?.name?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
-        </div>
-      </header>
-
-      <Tabs defaultValue="chats" className="flex-grow flex flex-col">
-        <TabsList className="w-full justify-around rounded-none">
-          <TabsTrigger value="chats" className="flex-1 relative">
-            Chats
-            {totalUnread > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">{totalUnread}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="updates" className="flex-1 relative">
-            Updates
-            {friendRequests.length > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">{friendRequests.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="calls" className="flex-1">Calls</TabsTrigger>
-        </TabsList>
-        <ScrollArea className="flex-grow">
-          <TabsContent value="chats" className="p-2">
+  const openGroupChat = (group: Group) => {
+    setGroupChat(group);
+    setActiveView('chat'); 
+  };
+  
+  const NavButton = ({ tabName, icon, label }: { tabName: string, icon: React.ReactNode, label: string }) => {
+    const isActive = activeTab === tabName;
+    let badgeCount = 0;
+    if (tabName === 'chats' && totalUnread > 0) badgeCount = totalUnread;
+    if (tabName === 'updates' && friendRequests.length > 0) badgeCount = friendRequests.length;
+    
+    return (
+      <Button
+        variant="ghost"
+        className={cn("flex flex-col h-auto p-2 gap-1 flex-1 relative", isActive ? "text-primary" : "text-muted-foreground")}
+        onClick={() => setActiveTab(tabName)}
+      >
+        {icon}
+        <span className="text-xs">{label}</span>
+        {badgeCount > 0 && <Badge className="absolute top-0 right-3 h-5 w-5 p-0 flex items-center justify-center">{badgeCount}</Badge>}
+      </Button>
+    );
+  };
+  
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'chats':
+        return (
+          <div className="p-2">
             {contacts.length > 0 ? (
               contacts.map(contact => (
                 <div key={contact.uid} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openChat(contact)}>
@@ -146,8 +173,34 @@ export function MainView() {
             ) : (
               <p className="text-center text-muted-foreground p-8">No contacts yet. Add friends from the Updates tab!</p>
             )}
-          </TabsContent>
-          <TabsContent value="updates" className="p-2 space-y-4">
+          </div>
+        );
+      case 'groups':
+         return (
+          <div className="p-2">
+             <Button className="w-full mb-4" onClick={() => setCreateGroupModalOpen(true)}>
+                <PlusCircle className="mr-2"/> Create New Group
+            </Button>
+            {groups.length > 0 ? (
+              groups.map(group => (
+                <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openGroupChat(group)}>
+                  <Avatar>
+                    <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="ml-3 flex-grow">
+                    <p className="font-semibold">{group.name}</p>
+                    <p className="text-xs text-muted-foreground">{Object.keys(group.members).length} members</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground p-8">No groups yet. Create one to start chatting!</p>
+            )}
+          </div>
+        );
+      case 'updates':
+        return (
+          <div className="p-2 space-y-4">
              {friendRequests.length > 0 && (
                 <div>
                   <h3 className="font-semibold px-2 mb-2">Friend Requests</h3>
@@ -167,8 +220,11 @@ export function MainView() {
                 </div>
              )}
             <FriendSuggestions />
-          </TabsContent>
-          <TabsContent value="calls" className="p-2">
+          </div>
+        );
+      case 'calls':
+        return (
+          <div className="p-2">
              {callHistory.length > 0 ? (
               callHistory.map(call => (
                 <div key={call.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
@@ -191,9 +247,52 @@ export function MainView() {
             ) : (
               <p className="text-center text-muted-foreground p-8">No recent calls.</p>
             )}
-          </TabsContent>
-        </ScrollArea>
-      </Tabs>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      <header className="bg-primary text-primary-foreground p-4 flex justify-between items-center shadow-md">
+        <h1 className="text-xl font-bold">ChitChat</h1>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('addFriend')}>
+            <UserPlus />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('profileView')}>
+            <Avatar className="w-8 h-8">
+              <AvatarFallback className="bg-primary-foreground text-primary text-xs font-bold">
+                {profile?.name?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </div>
+      </header>
+
+      <ScrollArea className="flex-grow">
+        {renderContent()}
+      </ScrollArea>
+      
+      <div className="flex justify-around items-center border-t bg-background shadow-inner">
+        <NavButton tabName="chats" icon={<MessageSquare />} label="Chats" />
+        <NavButton tabName="groups" icon={<Users />} label="Groups" />
+        <NavButton tabName="updates" icon={<Wand2 />} label="Updates" />
+        <NavButton tabName="calls" icon={<Phone />} label="Calls" />
+      </div>
+
+      {profile && (
+        <CreateGroupModal
+          isOpen={isCreateGroupModalOpen}
+          onClose={() => setCreateGroupModalOpen(false)}
+          currentUser={profile}
+          contacts={contacts}
+        />
+      )}
     </div>
   );
 }
+
+    
