@@ -15,6 +15,7 @@ import { db } from '@/lib/firebase';
 import { ref, get, set, query, orderByChild, equalTo } from 'firebase/database';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Camera } from 'lucide-react';
+import type { UserProfile } from '@/lib/types';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -28,7 +29,7 @@ interface ProfileSetupModalProps {
 }
 
 export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
-  const { firebaseUser, showModal } = useApp();
+  const { firebaseUser, showModal, updateProfile } = useApp();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -54,9 +55,9 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
       }
 
       // Save profile
-      const userProfile = {
+      const userProfile: UserProfile = {
         uid: firebaseUser.uid,
-        email: firebaseUser.email,
+        email: firebaseUser.email!,
         name: values.name,
         username: values.username,
         photoURL: null,
@@ -71,6 +72,9 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
       };
 
       await set(ref(db, `users/${firebaseUser.uid}`), userProfile);
+      
+      // Manually update profile in context to avoid race condition
+      await updateProfile(userProfile);
       
       toast({
         title: 'Profile Saved',
@@ -139,3 +143,5 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
     </Dialog>
   );
 }
+
+    

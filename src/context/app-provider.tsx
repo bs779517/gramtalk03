@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, onValue, off, remove, set, push, get as getDb, serverTimestamp, onDisconnect } from 'firebase/database';
+import { ref, onValue, off, remove, set, push, get as getDb, serverTimestamp, onDisconnect, update } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
 import type { FirebaseUser, UserProfile, Call, CallHistoryItem, Group } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,8 @@ interface AppContextType {
   setChatPartner: (user: UserProfile | null) => void;
   groupChat: Group | null;
   setGroupChat: (group: Group | null) => void;
+  
+  updateProfile: (profileData: Partial<UserProfile>) => Promise<void>;
 
   incomingCall: Call | null;
   setIncomingCall: (call: Call | null) => void;
@@ -78,6 +80,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
 
   const { toast } = useToast();
+  
+  const updateProfile = async (profileData: Partial<UserProfile>) => {
+    if (!firebaseUser) return;
+    const profileRef = ref(db, `users/${firebaseUser.uid}`);
+    await update(profileRef, profileData);
+    setProfile(prev => prev ? { ...prev, ...profileData } : null);
+  };
 
   const setChatPartner = (user: UserProfile | null) => {
     if (user) setGroupChatInternal(null);
@@ -313,7 +322,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const connectedRef = ref(db, '.info/connected');
     
     const listener = onValue(connectedRef, (snap) => {
-      if (snap.val() === true) {
+      if (snap.val() === true && profile) {
         const con = onDisconnect(userStatusRef);
         con.update({ onlineStatus: 'offline', lastSeen: Date.now() });
         set(userStatusRef, { ...profile, onlineStatus: 'online' });
@@ -335,7 +344,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(true);
       const profileRef = ref(db, `users/${firebaseUser.uid}`);
       profileUnsubscribe = onValue(profileRef, (snapshot) => {
-        const userProfile = snapshot.val();
+        const userProfile = snapshot.val() as UserProfile;
         setProfile(userProfile);
         if (userProfile?.username) {
           setActiveView('main');
@@ -351,7 +360,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(false);
     }
     return () => {
-      if (profileUnsubscribe) off(ref(db, `users/${firebaseUser?.uid}`), 'value', profileUnsubscribe);
+      if (profileUnsubscribe && firebaseUser?.uid) {
+        off(ref(db, `users/${firebaseUser.uid}`), 'value', profileUnsubscribe);
+      }
     };
   }, [firebaseUser]);
 
@@ -360,6 +371,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const value = {
     firebaseUser, profile, allUsers, isLoading, activeView, setActiveView, activeModal, showModal,
     chatPartner, setChatPartner, groupChat, setGroupChat, incomingCall, setIncomingCall, logout,
+    updateProfile,
     activeCall, localStream, remoteStream, isMuted, isVideoEnabled, toggleMute, toggleVideo,
     startCall, acceptCall, rejectCall, endCall
   };
@@ -372,3 +384,5 @@ export const useApp = () => {
   if (context === undefined) throw new Error('useApp must be used within an AppProvider');
   return context;
 };
+
+    

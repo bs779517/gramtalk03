@@ -26,7 +26,7 @@ interface ProfileModalProps {
 }
 
 export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
-  const { firebaseUser, profile, logout } = useApp();
+  const { firebaseUser, profile, logout, updateProfile } = useApp();
   
   // State for various profile fields
   const [name, setName] = useState(profile?.name || '');
@@ -110,7 +110,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     }
     
     try {
-      await update(ref(db, `users/${firebaseUser.uid}`), updates);
+      await updateProfile(updates);
       toast({
         title: 'Profile Updated',
         description: 'Your changes have been saved.',
@@ -270,3 +270,4 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   );
 }
 
+    
