@@ -59,6 +59,8 @@ export interface CallHistoryItem {
   timestamp: number;
 }
 
+export type GroupMemberRole = 'admin' | 'member';
+
 export interface Group {
   id: string;
   name: string;
@@ -66,7 +68,7 @@ export interface Group {
   photoURL: string | null;
   createdBy: string;
   createdAt: number;
-  members: Record<string, true>; // UIDs of members
+  members: Record<string, GroupMemberRole>; // UIDs of members with roles
   isPublic?: boolean;
 }
     

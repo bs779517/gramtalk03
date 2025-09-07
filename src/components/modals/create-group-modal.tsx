@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { ref, push, set, serverTimestamp, update } from 'firebase/database';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, GroupMemberRole } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Camera } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
@@ -67,11 +67,13 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
         throw new Error("Could not create group ID.");
       }
 
-      const allMemberUids = [...values.members, currentUser.uid];
-      const membersObject = allMemberUids.reduce((acc, uid) => {
-        acc[uid] = true;
-        return acc;
-      }, {} as Record<string, true>);
+      const membersObject: Record<string, GroupMemberRole> = {};
+      // The creator is always an admin
+      membersObject[currentUser.uid] = 'admin';
+      // Add selected contacts as members
+      values.members.forEach(uid => {
+        membersObject[uid] = 'member';
+      });
 
       const newGroupData = {
         id: groupId,
@@ -88,7 +90,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
 
       // Add group to each member's user profile
       const updates: Record<string, any> = {};
-      allMemberUids.forEach(uid => {
+      Object.keys(membersObject).forEach(uid => {
         updates[`/users/${uid}/groups/${groupId}`] = true;
       });
       await update(ref(db), updates);
