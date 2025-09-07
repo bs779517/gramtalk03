@@ -178,7 +178,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
                                 checked={field.value?.includes(contact.uid)}
                                 onCheckedChange={(checked) => {
                                   return checked
-                                    ? field.onChange([...field.value, contact.uid])
+                                    ? field.onChange([...(field.value || []), contact.uid])
                                     : field.onChange(
                                         field.value?.filter(
                                           (value) => value !== contact.uid
@@ -233,4 +233,6 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
     </Dialog>
   );
 }
+    
+
     
