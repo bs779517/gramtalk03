@@ -32,6 +32,13 @@ export function MainView() {
   const [groupSearchResults, setGroupSearchResults] = useState<Group[]>([]);
   const [isSearchingGroups, setIsSearchingGroups] = useState(false);
   
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -345,7 +352,7 @@ export function MainView() {
                     <div className="flex items-center text-xs text-muted-foreground">
                       {call.direction === 'incoming' ? 'Incoming' : 'Outgoing'} {call.type} call &middot; {call.status}
                     </div>
-                     <p className="text-xs text-muted-foreground">{formatDistanceToNow(call.timestamp, { addSuffix: true })}</p>
+                     <p className="text-xs text-muted-foreground">{isClient ? formatDistanceToNow(call.timestamp, { addSuffix: true }) : '...'}</p>
                   </div>
                    <div className="flex gap-2">
                      <Button size="icon" variant="ghost" onClick={() => call.with && startCall(call.with as UserProfile, 'voice')}><Phone/></Button>
