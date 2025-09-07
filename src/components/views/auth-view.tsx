@@ -70,7 +70,7 @@ export function AuthView() {
   };
   
   const renderBackButton = () => (
-     <Button variant="ghost" size="icon" className="absolute top-4 left-4" onClick={() => setView('initial')}>
+     <Button variant="ghost" size="icon" className="absolute top-6 left-4" onClick={() => setView('initial')}>
         <ArrowLeft />
       </Button>
   );
@@ -78,22 +78,26 @@ export function AuthView() {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center bg-background p-4 relative">
         {view === 'initial' && (
-            <div className="w-full max-w-sm text-center">
-                <MessageCircle className="h-16 w-16 text-primary mx-auto" />
-                <h1 className="text-4xl font-bold text-primary mt-2">GramTalk</h1>
-                <p className="text-muted-foreground mb-8">A modern chat application.</p>
+            <Card className="w-full max-w-sm shadow-lg border-none">
+              <CardHeader className="text-center items-center">
+                  <MessageCircle className="h-16 w-16 text-primary" />
+                  <CardTitle className="text-4xl font-bold text-primary mt-2">GramTalk</CardTitle>
+                  <CardDescription>A modern chat application.</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
                     <Button className="w-full" size="lg" onClick={() => setView('login')}>Log In</Button>
                     <Button className="w-full" size="lg" variant="secondary" onClick={() => setView('signup')}>Sign Up</Button>
                 </div>
-            </div>
+              </CardContent>
+            </Card>
         )}
 
         {view === 'login' && (
-            <Card className="w-full max-w-sm">
+            <Card className="w-full max-w-sm relative">
                 {renderBackButton()}
                 <CardHeader className="text-center">
-                    <CardTitle>Log In</CardTitle>
+                    <CardTitle className="text-2xl pt-8">Log In</CardTitle>
                     <CardDescription>Welcome back!</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -131,11 +135,11 @@ export function AuthView() {
         )}
 
         {view === 'signup' && (
-            <Card className="w-full max-w-sm">
+            <Card className="w-full max-w-sm relative">
                  {renderBackButton()}
                 <CardHeader className="text-center">
-                    <CardTitle>Sign Up</CardTitle>
-                    <CardDescription>Create a new account to start chatting.</CardDescription>
+                    <CardTitle className="text-2xl pt-8">Sign Up</CardTitle>
+                    <CardDescription>Create an account to start chatting.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...signupForm}>
