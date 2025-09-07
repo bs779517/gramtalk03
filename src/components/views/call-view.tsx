@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Mic, MicOff, Video, VideoOff, Phone, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+
 
 export function CallView() {
   const {
@@ -17,10 +19,12 @@ export function CallView() {
     toggleMute,
     isVideoEnabled,
     toggleVideo,
+    allUsers
   } = useApp();
   
   const [localVideoRef, setLocalVideoRef] = useState<HTMLVideoElement | null>(null);
   const [remoteVideoRef, setRemoteVideoRef] = useState<HTMLVideoElement | null>(null);
+  const [status, setStatus] = useState('Connecting...');
 
   useEffect(() => {
     if (localVideoRef && localStream) {
@@ -33,6 +37,12 @@ export function CallView() {
       remoteVideoRef.srcObject = remoteStream;
     }
   }, [remoteVideoRef, remoteStream]);
+
+  useEffect(() => {
+    if (activeCall?.status) {
+      setStatus(activeCall.status === 'connecting' ? 'Connecting...' : 'In call');
+    }
+  }, [activeCall?.status]);
   
   if (!activeCall) return null;
 
@@ -78,7 +88,7 @@ export function CallView() {
               </Avatar>
            </div>
           <h2 className="text-3xl font-bold mt-4">{activeCall.partner.name}</h2>
-          <p className="text-lg opacity-80">{activeCall.status === 'connecting' ? 'Connecting...' : 'In call'}</p>
+          <p className="text-lg opacity-80">{status}</p>
         </div>
 
         {/* Controls */}

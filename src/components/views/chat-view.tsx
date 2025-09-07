@@ -17,6 +17,7 @@ export function ChatView() {
   const { firebaseUser, profile, chatPartner, groupChat, setActiveView, startCall, allUsers } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [status, setStatus] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const isGroupChat = !!groupChat;
@@ -54,6 +55,20 @@ export function ChatView() {
       }
     }, 100);
   }, [messages]);
+
+  useEffect(() => {
+    if (isGroupChat && groupChat) {
+      setStatus(`${Object.keys(groupChat.members).length} members`);
+    } else if (chatPartnerProfile) {
+      if (chatPartnerProfile.onlineStatus === 'online') {
+        setStatus('Online');
+      } else if (chatPartnerProfile.lastSeen) {
+        setStatus(`Last seen ${formatDistanceToNow(chatPartnerProfile.lastSeen, { addSuffix: true })}`);
+      } else {
+        setStatus(`@${chatPartnerProfile.username}`);
+      }
+    }
+  }, [chatPartnerProfile, isGroupChat, groupChat]);
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -93,25 +108,7 @@ export function ChatView() {
       </div>
     );
   }
-
-  const getSender = (fromUid: string) => {
-    if (!allUsers) return null;
-    return allUsers[fromUid] || null;
-  };
   
-  const getStatus = () => {
-      if (isGroupChat) {
-          return `${Object.keys(groupChat.members).length} members`;
-      }
-      if (chatPartnerProfile?.onlineStatus === 'online') {
-          return 'Online';
-      }
-      if (chatPartnerProfile?.lastSeen) {
-          return `Last seen ${formatDistanceToNow(chatPartnerProfile.lastSeen, { addSuffix: true })}`;
-      }
-      return `@${(chatTarget as UserProfile).username}`;
-  }
-
   return (
     <div className="flex flex-col h-full bg-background">
       <header className="flex items-center p-2 border-b gap-2 shadow-sm bg-secondary">
@@ -129,7 +126,7 @@ export function ChatView() {
         </div>
         <div className="flex-grow">
           <p className="font-semibold">{chatTarget.name}</p>
-           <p className="text-xs text-muted-foreground">{getStatus()}</p>
+           <p className="text-xs text-muted-foreground">{status}</p>
         </div>
         {isGroupChat ? (
              <Button variant="ghost" size="icon">
