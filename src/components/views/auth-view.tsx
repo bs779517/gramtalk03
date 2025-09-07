@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { Separator } from '../ui/separator';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -25,7 +26,7 @@ const signupSchema = z.object({
 });
 
 export function AuthView() {
-  const [view, setView] = useState<'initial' | 'login' | 'signup'>('initial');
+  const [view, setView] = useState<'login' | 'signup'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -68,37 +69,15 @@ export function AuthView() {
       setIsLoading(false);
     }
   };
-  
-  const renderBackButton = () => (
-     <Button variant="ghost" size="icon" className="absolute top-6 left-4" onClick={() => setView('initial')}>
-        <ArrowLeft />
-      </Button>
-  );
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center bg-background p-4 relative">
-        {view === 'initial' && (
-            <Card className="w-full max-w-sm shadow-lg border-none">
-              <CardHeader className="text-center items-center">
-                  <MessageCircle className="h-16 w-16 text-primary" />
-                  <CardTitle className="text-4xl font-bold text-primary mt-2">GramTalk</CardTitle>
-                  <CardDescription>A modern chat application.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                    <Button className="w-full" size="lg" onClick={() => setView('login')}>Log In</Button>
-                    <Button className="w-full" size="lg" variant="secondary" onClick={() => setView('signup')}>Sign Up</Button>
-                </div>
-              </CardContent>
-            </Card>
-        )}
-
+    <div className="flex h-full w-full flex-col items-center justify-center bg-background p-4">
         {view === 'login' && (
-            <Card className="w-full max-w-sm relative">
-                {renderBackButton()}
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl pt-8">Log In</CardTitle>
-                    <CardDescription>Welcome back!</CardDescription>
+            <Card className="w-full max-w-sm">
+                <CardHeader className="text-center items-center">
+                  <MessageCircle className="h-12 w-12 text-primary" />
+                  <CardTitle className="text-3xl font-bold">GramTalk</CardTitle>
+                  <CardDescription>"Chat without limits"</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...loginForm}>
@@ -130,16 +109,26 @@ export function AuthView() {
                             </Button>
                         </form>
                     </Form>
+                     <div className="text-center mt-4">
+                        <Button variant="link" className="text-xs p-0 h-auto">Forgot Password?</Button>
+                    </div>
+                    <Separator className="my-4" />
+                    <div className="text-center text-sm text-muted-foreground">
+                        Don't have an account?
+                        <Button variant="link" className="p-1 h-auto" onClick={() => setView('signup')}>Create Account</Button>
+                    </div>
                 </CardContent>
             </Card>
         )}
 
         {view === 'signup' && (
             <Card className="w-full max-w-sm relative">
-                 {renderBackButton()}
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl pt-8">Sign Up</CardTitle>
-                    <CardDescription>Create an account to start chatting.</CardDescription>
+                 <Button variant="ghost" size="icon" className="absolute top-4 left-4" onClick={() => setView('login')}>
+                    <ArrowLeft />
+                 </Button>
+                <CardHeader className="text-center pt-16">
+                    <CardTitle className="text-2xl">Create Account</CardTitle>
+                    <CardDescription>Get started with GramTalk.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...signupForm}>
