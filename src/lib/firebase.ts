@@ -3,13 +3,13 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDExdiaHrb74VnoDQD1wQYOo_MCazKF9WE",
-  authDomain: "gramtalk03.firebaseapp.com",
-  databaseURL: "https://gramtalk03-default-rtdb.firebaseio.com",
-  projectId: "gramtalk03",
-  storageBucket: "gramtalk03.firebasestorage.app",
-  messagingSenderId: "255381585722",
-  appId: "1:255381585722:web:0976e99f7fe47096cd5a03"
+  apiKey: "AIzaSyCXB4YFohr7QVd8he9QmuASesyvGiNqsAc",
+  authDomain: "gramtalk-fec30.firebaseapp.com",
+  databaseURL: "https://gramtalk-fec30-default-rtdb.firebaseio.com",
+  projectId: "gramtalk-fec30",
+  storageBucket: "gramtalk-fec30.firebasestorage.app",
+  messagingSenderId: "156529274764",
+  appId: "1:156529274764:web:1677de6463faef1801b0a9"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
