@@ -118,7 +118,7 @@ export function ChatView() {
         <div className="relative">
           <Avatar>
             <AvatarImage src={isGroupChat ? groupChat.photoURL ?? undefined : (chatPartner as UserProfile)?.photoURL ?? undefined} />
-            <AvatarFallback>{chatTarget.name.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>{chatTarget.name ? chatTarget.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
           </Avatar>
            {!isGroupChat && chatPartnerProfile?.onlineStatus === 'online' && (
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-secondary" />

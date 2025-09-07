@@ -82,7 +82,7 @@ export function FriendSuggestions() {
               <div key={suggestion.uid} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary">
                 <Avatar>
                   <AvatarImage src={(allUsers?.[suggestion.uid] as any)?.photoURL ?? undefined} alt={suggestion.name} />
-                  <AvatarFallback>{suggestion.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{suggestion.name ? suggestion.name.charAt(0) : '?'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-grow">
                   <p className="font-semibold">{suggestion.name}</p>

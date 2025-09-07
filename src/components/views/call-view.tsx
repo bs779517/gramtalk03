@@ -47,6 +47,7 @@ export function CallView() {
   if (!activeCall) return null;
 
   const isVideoCall = activeCall.type === 'video';
+  const partnerName = activeCall.partner.name || 'Unknown User';
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col text-white">
@@ -81,13 +82,13 @@ export function CallView() {
                   <AvatarImage src={activeCall.partner.photoURL ?? undefined} />
                 ) : (
                   <AvatarFallback className="text-4xl bg-primary/20 animate-pulse">
-                    {activeCall.partner.name?.charAt(0).toUpperCase()}
+                    {partnerName.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 )}
-                <AvatarFallback className="text-4xl">{activeCall.partner.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarFallback className="text-4xl">{partnerName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
            </div>
-          <h2 className="text-3xl font-bold mt-4">{activeCall.partner.name}</h2>
+          <h2 className="text-3xl font-bold mt-4">{partnerName}</h2>
           <p className="text-lg opacity-80">{status}</p>
         </div>
 

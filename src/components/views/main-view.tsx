@@ -226,13 +226,13 @@ export function MainView() {
           <div className="p-2">
             {contacts.length > 0 ? (
               contacts.map(contact => {
-                const user = allUsers ? allUsers[contact.uid] : contact;
+                const user = allUsers && contact ? allUsers[contact.uid] : contact;
                 return (
                 <div key={contact.uid} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openChat(contact)}>
                   <div className="relative">
                     <Avatar>
                       <AvatarImage src={contact.photoURL ?? undefined} alt={contact.name} />
-                      <AvatarFallback>{contact.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback>{contact.name ? contact.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                     </Avatar>
                      {user?.onlineStatus === 'online' && (
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
@@ -274,7 +274,7 @@ export function MainView() {
                     <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
                       <Avatar>
                         <AvatarImage src={group.photoURL ?? undefined} />
-                        <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback>{group.name ? group.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                       </Avatar>
                       <div className="ml-3 flex-grow">
                         <p className="font-semibold">{group.name}</p>
@@ -299,7 +299,7 @@ export function MainView() {
                   <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openGroupChat(group)}>
                     <Avatar>
                       <AvatarImage src={group.photoURL ?? undefined} />
-                      <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback>{group.name ? group.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                     </Avatar>
                     <div className="ml-3 flex-grow">
                       <p className="font-semibold">{group.name}</p>
@@ -321,7 +321,7 @@ export function MainView() {
                   <h3 className="font-semibold px-2 mb-2">Friend Requests</h3>
                   {friendRequests.map(req => (
                     <div key={req.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
-                      <Avatar><AvatarFallback>{req.fromName.charAt(0)}</AvatarFallback></Avatar>
+                      <Avatar><AvatarFallback>{req.fromName ? req.fromName.charAt(0) : '?'}</AvatarFallback></Avatar>
                       <div className="ml-3 flex-grow">
                         <p className="font-semibold">{req.fromName}</p>
                         <p className="text-xs text-muted-foreground">@{req.fromUsername}</p>
@@ -345,7 +345,7 @@ export function MainView() {
                 <div key={call.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
                   <Avatar>
                     <AvatarImage src={call.with.photoURL ?? undefined} alt={call.with.name} />
-                    <AvatarFallback>{call.with.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{call.with.name ? call.with.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3 flex-grow">
                     <p className="font-semibold">{call.with.name}</p>
@@ -382,7 +382,7 @@ export function MainView() {
             <Avatar className="w-8 h-8">
               <AvatarImage src={profile?.photoURL ?? undefined} alt={profile?.name} />
               <AvatarFallback className="bg-primary-foreground text-primary text-xs font-bold">
-                {profile?.name?.charAt(0).toUpperCase()}
+                {profile?.name ? profile.name.charAt(0).toUpperCase() : '?'}
               </AvatarFallback>
             </Avatar>
           </Button>

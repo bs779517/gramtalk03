@@ -163,7 +163,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
             <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
             <Avatar className="h-24 w-24 cursor-pointer relative group" onClick={() => fileInputRef.current?.click()}>
               <AvatarImage src={newPhoto ?? profile.photoURL ?? undefined} alt={profile.name} />
-              <AvatarFallback className="text-4xl">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="text-4xl">{profile.name ? profile.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                   <Camera className="text-white h-8 w-8" />
                 </div>
