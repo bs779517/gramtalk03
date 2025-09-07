@@ -13,8 +13,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { ref, get, set, query, orderByChild, equalTo } from 'firebase/database';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Camera } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 
 const formSchema = z.object({
@@ -29,7 +27,7 @@ interface ProfileSetupModalProps {
 }
 
 export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
-  const { firebaseUser, showModal, updateProfile } = useApp();
+  const { firebaseUser, showModal, updateProfile, logout } = useApp();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -97,7 +95,7 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
 
   return (
     <Dialog open={open}>
-      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Complete Your Profile</DialogTitle>
           <DialogDescription>
@@ -132,8 +130,11 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button type="submit" disabled={isLoading} className="w-full">
+            <DialogFooter className="grid grid-cols-2 gap-2">
+               <Button type="button" variant="outline" onClick={logout}>
+                Log Out
+              </Button>
+              <Button type="submit" disabled={isLoading}>
                 {isLoading ? 'Saving...' : 'Save and Continue'}
               </Button>
             </DialogFooter>
@@ -143,5 +144,3 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
     </Dialog>
   );
 }
-
-    
