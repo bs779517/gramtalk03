@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { ref, get, set, query, orderByValue, equalTo } from 'firebase/database';
+import { ref, get, set, query, orderByChild, equalTo } from 'firebase/database';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -41,20 +41,13 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
 
     try {
       // Check if username is taken
-      const usernamesRef = ref(db, 'usernames');
-      const q = query(usernamesRef, orderByValue(), equalTo(values.username));
+      const usersRef = ref(db, 'users');
+      const q = query(usersRef, orderByChild('username'), equalTo(values.username));
       const snapshot = await get(q);
       
-      let existingUsernameKey: string | null = null;
       if (snapshot.exists()) {
-        const data = snapshot.val();
-        existingUsernameKey = Object.keys(data).find(key => data[key] === values.username) || null;
-      }
-      
-      const usernameTaken = existingUsernameKey && existingUsernameKey !== firebaseUser.uid;
-      
-      if (usernameTaken) {
         form.setError('username', { message: 'This username is already taken.' });
+        setIsLoading(false);
         return;
       }
 
@@ -67,8 +60,7 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
       };
 
       await set(ref(db, `users/${firebaseUser.uid}`), userProfile);
-      await set(ref(db, `usernames/${values.username}`), firebaseUser.uid);
-
+      
       toast({
         title: 'Profile Saved',
         description: "Welcome to ChitChat! Let's get you connected.",
