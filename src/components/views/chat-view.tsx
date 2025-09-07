@@ -103,7 +103,7 @@ export function ChatView() {
           <ArrowLeft />
         </Button>
         <Avatar>
-          <AvatarImage src={isGroupChat ? groupChat.photoURL : undefined} />
+          <AvatarImage src={isGroupChat ? groupChat.photoURL ?? undefined : undefined} />
           <AvatarFallback>{chatTarget.name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex-grow">

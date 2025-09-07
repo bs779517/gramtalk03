@@ -257,7 +257,7 @@ export function MainView() {
                   {groupSearchResults.map(group => (
                     <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
                       <Avatar>
-                        <AvatarImage src={group.photoURL} />
+                        <AvatarImage src={group.photoURL ?? undefined} />
                         <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="ml-3 flex-grow">
@@ -282,7 +282,7 @@ export function MainView() {
                 groups.map(group => (
                   <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openGroupChat(group)}>
                     <Avatar>
-                      <AvatarImage src={group.photoURL} />
+                      <AvatarImage src={group.photoURL ?? undefined} />
                       <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="ml-3 flex-grow">
@@ -395,3 +395,4 @@ export function MainView() {
 }
 
     
+
