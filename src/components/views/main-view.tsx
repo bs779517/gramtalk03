@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2 } from 'lucide-react';
@@ -185,6 +185,7 @@ export function MainView() {
               groups.map(group => (
                 <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openGroupChat(group)}>
                   <Avatar>
+                    <AvatarImage src={group.photoURL} />
                     <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3 flex-grow">

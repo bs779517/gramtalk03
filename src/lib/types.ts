@@ -52,6 +52,7 @@ export interface CallHistoryItem {
 export interface Group {
   id: string;
   name: string;
+  photoURL?: string;
   createdBy: string;
   createdAt: number;
   members: Record<string, true>; // UIDs of members

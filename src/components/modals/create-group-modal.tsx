@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { ref, push, set, serverTimestamp, update } from 'firebase/database';
 import type { UserProfile } from '@/lib/types';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Camera } from 'lucide-react';
 
 const formSchema = z.object({
   groupName: z.string().min(3, { message: 'Group name must be at least 3 characters.' }),
@@ -30,12 +32,25 @@ interface CreateGroupModalProps {
 
 export default function CreateGroupModal({ isOpen, onClose, currentUser, contacts }: CreateGroupModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [groupPhoto, setGroupPhoto] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { groupName: '', members: [] },
   });
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setGroupPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
@@ -58,6 +73,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
       const newGroupData = {
         id: groupId,
         name: values.groupName,
+        photoURL: groupPhoto,
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
         members: membersObject,
@@ -76,8 +92,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
         title: 'Group Created',
         description: `Group "${values.groupName}" has been created successfully.`,
       });
-      form.reset();
-      onClose();
+      handleClose();
 
     } catch (error) {
       console.error(error);
@@ -93,6 +108,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
   
   const handleClose = () => {
       form.reset();
+      setGroupPhoto(null);
       onClose();
   }
 
@@ -102,11 +118,32 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
         <DialogHeader>
           <DialogTitle>Create a New Group</DialogTitle>
           <DialogDescription>
-            Name your group and select members from your contacts.
+            Name your group, set a picture, and select members.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex flex-col items-center space-y-2">
+               <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <Avatar className="w-24 h-24 cursor-pointer relative group" onClick={() => fileInputRef.current?.click()}>
+                <AvatarImage src={groupPhoto ?? undefined} alt="Group Photo" />
+                <AvatarFallback className="text-4xl">
+                  {form.watch('groupName')?.charAt(0) || '?'}
+                </AvatarFallback>
+                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                  <Camera className="text-white" />
+                </div>
+              </Avatar>
+              <Button type="button" variant="link" onClick={() => fileInputRef.current?.click()}>
+                Set Group Photo
+              </Button>
+            </div>
             <FormField
               control={form.control}
               name="groupName"
@@ -172,5 +209,4 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
     </Dialog>
   );
 }
-
     

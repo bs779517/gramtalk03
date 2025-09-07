@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Phone, Send, Video, Users } from 'lucide-react';
@@ -63,7 +63,7 @@ export function ChatView() {
 
     const message: Omit<Message, 'id'> = {
       from: firebaseUser.uid,
-      to: chatTarget.uid, // For 1-on-1, this is partner UID, for group, it's group ID
+      to: isGroupChat ? groupChat.id : chatPartner!.uid,
       text: newMessage.trim(),
       ts: serverTimestamp() as any,
     };
@@ -103,6 +103,7 @@ export function ChatView() {
           <ArrowLeft />
         </Button>
         <Avatar>
+          <AvatarImage src={isGroupChat ? groupChat.photoURL : undefined} />
           <AvatarFallback>{chatTarget.name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex-grow">
