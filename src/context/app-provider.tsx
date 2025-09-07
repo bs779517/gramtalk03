@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, onValue, off, remove, set, push } from 'firebase/database';
+import { ref, onValue, off, remove, set, push, get as getDb } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
 import type { FirebaseUser, UserProfile, Call, CallHistoryItem, Group } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -105,19 +105,32 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   }, [peerConnection, localStream]);
 
   const endCall = useCallback(async () => {
-    if (activeCall?.id) {
-        const historyRef = ref(db, `callHistory/${firebaseUser?.uid}/${activeCall.id}`);
+    if (activeCall?.id && firebaseUser?.uid) {
+        const historyRef = ref(db, `callHistory/${firebaseUser.uid}/${activeCall.id}`);
         const partnerHistoryRef = ref(db, `callHistory/${activeCall.partner.uid}/${activeCall.id}`);
-        const myUpdate = { status: 'answered' }; // Assume answered if call was active
-        const partnerUpdate = { status: 'answered' };
-        set(historyRef, (await get(historyRef)).val() ? {...(await get(historyRef)).val(), ...myUpdate} : myUpdate);
-        set(partnerHistoryRef, (await get(partnerHistoryRef)).val() ? {...(await get(partnerHistoryRef)).val(), ...partnerUpdate} : partnerUpdate);
+        
+        try {
+            const myHistorySnap = await getDb(historyRef);
+            const partnerHistorySnap = await getDb(partnerHistoryRef);
 
-        await remove(ref(db, `calls/${firebaseUser?.uid}/${activeCall.id}`));
+            const myUpdate = { status: 'answered' };
+            const partnerUpdate = { status: 'answered' };
+
+            if (myHistorySnap.exists()) {
+                await set(historyRef, { ...myHistorySnap.val(), ...myUpdate });
+            }
+            if (partnerHistorySnap.exists()) {
+                await set(partnerHistoryRef, { ...partnerHistorySnap.val(), ...partnerUpdate });
+            }
+        } catch (e) {
+            // console.error("Error updating call history:", e);
+        }
+
+        await remove(ref(db, `calls/${firebaseUser.uid}/${activeCall.id}`));
         await remove(ref(db, `calls/${activeCall.partner.uid}/${activeCall.id}`));
     }
     cleanupCall();
-  }, [activeCall, firebaseUser?.uid, cleanupCall]);
+}, [activeCall, firebaseUser?.uid, cleanupCall]);
 
 
   const startCall = useCallback(async (partner: UserProfile, type: 'video' | 'voice') => {
@@ -159,7 +172,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     };
     await set(callRef, callData);
     
-    const historyItem = {
+    const historyItem: CallHistoryItem = {
         id: callId,
         with: {uid: partner.uid, name: partner.name, username: partner.username},
         type,
@@ -338,14 +351,3 @@ export const useApp = () => {
   if (context === undefined) throw new Error('useApp must be used within an AppProvider');
   return context;
 };
-
-// Helper function to get value from RTDB once
-async function get(ref: any) {
-  return new Promise((resolve) => {
-    onValue(ref, (snapshot) => {
-      resolve(snapshot.val());
-    }, { onlyOnce: true });
-  });
-}
-
-    

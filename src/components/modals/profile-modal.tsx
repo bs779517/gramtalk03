@@ -1,15 +1,16 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { db } from '@/lib/firebase';
-import { ref, onValue, off, remove } from 'firebase/database';
+import { ref, onValue, off, remove, update } from 'firebase/database';
 import type { UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { Camera } from 'lucide-react';
 
 interface ProfileModalProps {
   open: boolean;
@@ -19,6 +20,9 @@ interface ProfileModalProps {
 export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const { firebaseUser, profile, logout } = useApp();
   const [blockedUsers, setBlockedUsers] = useState<UserProfile[]>([]);
+  const [newPhoto, setNewPhoto] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -30,20 +34,25 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     const blockedIds = Object.keys(profile.blocked);
     const listeners: (() => void)[] = [];
 
-    const fetchBlockedUsers = async () => {
+    const fetchBlockedUsers = () => {
       const users: UserProfile[] = [];
-      for (const id of blockedIds) {
+      blockedIds.forEach(id => {
         const userRef = ref(db, `users/${id}`);
         const listener = onValue(userRef, (snapshot) => {
           if (snapshot.exists()) {
-            users.push(snapshot.val());
-            // This is not ideal as it will re-set state on each user load
-            // For a small number of blocked users, it's acceptable.
+            const userData = snapshot.val();
+            // Remove the old entry if it exists and add the new one
+            const userIndex = users.findIndex(u => u.uid === id);
+            if (userIndex > -1) {
+              users[userIndex] = userData;
+            } else {
+              users.push(userData);
+            }
             setBlockedUsers([...users]);
           }
         });
         listeners.push(() => off(userRef, 'value', listener));
-      }
+      });
     };
 
     fetchBlockedUsers();
@@ -52,6 +61,13 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
       listeners.forEach(unsub => unsub());
     };
   }, [firebaseUser, profile?.blocked]);
+  
+  // Reset photo on modal close
+  useEffect(() => {
+    if (!open) {
+      setNewPhoto(null);
+    }
+  }, [open]);
 
   const handleUnblock = async (uid: string) => {
     if (!firebaseUser) return;
@@ -69,6 +85,38 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
       });
     }
   };
+  
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const handleSaveChanges = async () => {
+    if (!firebaseUser || !newPhoto) return;
+    setIsSaving(true);
+    try {
+      await update(ref(db, `users/${firebaseUser.uid}`), { photoURL: newPhoto });
+      toast({
+        title: 'Profile Updated',
+        description: 'Your new profile picture has been saved.',
+      });
+      setNewPhoto(null);
+    } catch (error) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to save your new picture. Please try again.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   if (!profile) return null;
 
@@ -80,15 +128,30 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
           <DialogDescription>Manage your account settings and preferences.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={profile.photoURL ?? undefined} alt={profile.name} />
-              <AvatarFallback className="text-2xl">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
+          <div className="flex flex-col items-center gap-4">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handlePhotoUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <Avatar className="h-24 w-24 cursor-pointer relative group" onClick={() => fileInputRef.current?.click()}>
+              <AvatarImage src={newPhoto ?? profile.photoURL ?? undefined} alt={profile.name} />
+              <AvatarFallback className="text-4xl">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
+               <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                  <Camera className="text-white h-8 w-8" />
+                </div>
             </Avatar>
             <div>
-              <p className="text-xl font-semibold">{profile.name}</p>
-              <p className="text-sm text-muted-foreground">@{profile.username}</p>
+              <p className="text-xl font-semibold text-center">{profile.name}</p>
+              <p className="text-sm text-muted-foreground text-center">@{profile.username}</p>
             </div>
+            {newPhoto && (
+              <Button size="sm" onClick={handleSaveChanges} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save Picture'}
+              </Button>
+            )}
           </div>
           <div>
             <h3 className="text-sm font-medium mb-2">Blocked Users</h3>
