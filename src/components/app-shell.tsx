@@ -25,7 +25,7 @@ export default function AppShell() {
     activeModal, 
     showModal,
     setIncomingCall,
-    chatPartner
+    activeCall
   } = useApp();
 
   const { toast } = useToast();
@@ -79,19 +79,21 @@ export default function AppShell() {
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-muted/50 p-4">
-      <div className="relative h-full w-full max-w-[450px] max-h-[950px] overflow-hidden rounded-2xl bg-background shadow-2xl flex flex-col">
-        {renderView()}
-        <CallView />
-
-        {/* Modals */}
-        <AddFriendModal open={activeModal === 'addFriend'} onOpenChange={() => showModal(null)} />
-        <ProfileSetupModal open={activeModal === 'profileSetup'} />
-        <ProfileModal open={activeModal === 'profileView'} onOpenChange={() => showModal(null)} />
-        <IncomingCallModal />
-        
-        <audio id="ringtone" loop src="/ringtone.mp3"></audio>
+    <>
+      <div className="flex h-screen w-screen items-center justify-center bg-muted/50 p-4">
+        <div className="relative h-full w-full max-w-[450px] max-h-[950px] overflow-hidden rounded-2xl bg-background shadow-2xl flex flex-col">
+          {renderView()}
+          
+          {/* Modals */}
+          <AddFriendModal open={activeModal === 'addFriend'} onOpenChange={() => showModal(null)} />
+          <ProfileSetupModal open={activeModal === 'profileSetup'} />
+          <ProfileModal open={activeModal === 'profileView'} onOpenChange={() => showModal(null)} />
+          <IncomingCallModal />
+          
+          <audio id="ringtone" loop src="/ringtone.mp3"></audio>
+        </div>
       </div>
-    </div>
+      <CallView />
+    </>
   );
 }

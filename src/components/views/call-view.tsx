@@ -39,7 +39,7 @@ export function CallView() {
   const isVideoCall = activeCall.type === 'video';
 
   return (
-    <div className="absolute inset-0 bg-black z-40 flex flex-col text-white">
+    <div className="fixed inset-0 bg-black z-50 flex flex-col text-white">
       {/* Video feeds */}
       {isVideoCall && (
         <>
@@ -55,7 +55,7 @@ export function CallView() {
               autoPlay
               playsInline
               muted
-              className="absolute top-4 right-4 w-24 h-32 object-cover rounded-lg border-2 border-white shadow-lg"
+              className="absolute top-4 right-4 w-24 sm:w-32 md:w-40 aspect-[9/16] object-cover rounded-lg border-2 border-white shadow-lg"
             />
           )}
         </>
@@ -65,22 +65,24 @@ export function CallView() {
       <div className={cn("absolute inset-0 flex flex-col justify-between p-6", !isVideoCall && 'bg-slate-800')}>
         {/* Caller Info */}
         <div className="text-center mt-8">
-          <Avatar className={cn("w-24 h-24 mx-auto", isVideoCall ? 'hidden' : 'flex')}>
-            {remoteStream ? (
-               <AvatarImage src={activeCall.partner.photoURL ?? undefined} />
-            ) : (
-              <AvatarFallback className="text-4xl bg-primary/20 animate-pulse">
-                {activeCall.partner.name?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            )}
-             <AvatarFallback className="text-4xl">{activeCall.partner.name?.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
+           <div className={cn("flex justify-center", !isVideoCall ? 'mt-16' : 'mt-0')}>
+              <Avatar className={cn("w-24 h-24 mx-auto", isVideoCall ? 'hidden' : 'flex')}>
+                {remoteStream ? (
+                  <AvatarImage src={activeCall.partner.photoURL ?? undefined} />
+                ) : (
+                  <AvatarFallback className="text-4xl bg-primary/20 animate-pulse">
+                    {activeCall.partner.name?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                )}
+                <AvatarFallback className="text-4xl">{activeCall.partner.name?.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+           </div>
           <h2 className="text-3xl font-bold mt-4">{activeCall.partner.name}</h2>
           <p className="text-lg opacity-80">{activeCall.status === 'connecting' ? 'Connecting...' : 'In call'}</p>
         </div>
 
         {/* Controls */}
-        <div className="flex justify-center items-center gap-4">
+        <div className="flex justify-center items-center gap-4 mb-8">
           {isVideoCall && (
             <Button
               size="lg"
