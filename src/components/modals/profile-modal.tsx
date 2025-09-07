@@ -3,14 +3,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+} from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { db } from '@/lib/firebase';
 import { ref, onValue, off, remove, update } from 'firebase/database';
 import type { UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Camera } from 'lucide-react';
+import { Camera, Edit2 } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Switch } from '../ui/switch';
 
 interface ProfileModalProps {
   open: boolean;
@@ -19,12 +27,31 @@ interface ProfileModalProps {
 
 export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const { firebaseUser, profile, logout } = useApp();
-  const [blockedUsers, setBlockedUsers] = useState<UserProfile[]>([]);
+  
+  // State for various profile fields
+  const [name, setName] = useState(profile?.name || '');
+  const [bio, setBio] = useState(profile?.bio || '');
   const [newPhoto, setNewPhoto] = useState<string | null>(null);
+  const [privacy, setPrivacy] = useState(profile?.privacy || { profilePhoto: 'everyone', about: 'everyone', lastSeen: 'everyone' });
+  const [onlineStatus, setOnlineStatus] = useState(profile?.onlineStatus === 'online');
+  const [blockedUsers, setBlockedUsers] = useState<UserProfile[]>([]);
+  
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingBio, setIsEditingBio] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name);
+      setBio(profile.bio || '');
+      setPrivacy(profile.privacy || { profilePhoto: 'everyone', about: 'everyone', lastSeen: 'everyone' });
+      setOnlineStatus(profile.onlineStatus === 'online');
+    }
+  }, [profile]);
+  
   useEffect(() => {
     if (!firebaseUser || !profile?.blocked) {
       setBlockedUsers([]);
@@ -41,50 +68,66 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
         const listener = onValue(userRef, (snapshot) => {
           if (snapshot.exists()) {
             const userData = snapshot.val();
-            // Remove the old entry if it exists and add the new one
             const userIndex = users.findIndex(u => u.uid === id);
-            if (userIndex > -1) {
-              users[userIndex] = userData;
-            } else {
-              users.push(userData);
-            }
+            if (userIndex > -1) users[userIndex] = userData;
+            else users.push(userData);
             setBlockedUsers([...users]);
           }
         });
         listeners.push(() => off(userRef, 'value', listener));
       });
     };
-
     fetchBlockedUsers();
-
-    return () => {
-      listeners.forEach(unsub => unsub());
-    };
+    return () => listeners.forEach(unsub => unsub());
   }, [firebaseUser, profile?.blocked]);
   
-  // Reset photo on modal close
   useEffect(() => {
     if (!open) {
       setNewPhoto(null);
+      setIsEditingName(false);
+      setIsEditingBio(false);
+      if(profile) {
+        setName(profile.name);
+        setBio(profile.bio || '');
+      }
     }
-  }, [open]);
+  }, [open, profile]);
 
-  const handleUnblock = async (uid: string) => {
+  const handleSaveChanges = async () => {
     if (!firebaseUser) return;
+    setIsSaving(true);
+    
+    const updates: Partial<UserProfile> = {
+      name,
+      bio,
+      privacy,
+      onlineStatus: onlineStatus ? 'online' : 'offline',
+      lastSeen: onlineStatus ? Date.now() : profile?.lastSeen
+    };
+    
+    if (newPhoto) {
+      updates.photoURL = newPhoto;
+    }
+    
     try {
-      await remove(ref(db, `users/${firebaseUser.uid}/blocked/${uid}`));
+      await update(ref(db, `users/${firebaseUser.uid}`), updates);
       toast({
-        title: 'User Unblocked',
-        description: 'They can now contact you and see you in suggestions.',
+        title: 'Profile Updated',
+        description: 'Your changes have been saved.',
       });
+      setNewPhoto(null);
+      setIsEditingName(false);
+      setIsEditingBio(false);
     } catch (error) {
-      toast({
+       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to unblock user. Please try again.',
+        description: 'Failed to save your changes. Please try again.',
       });
+    } finally {
+      setIsSaving(false);
     }
-  };
+  }
   
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,27 +139,16 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
       reader.readAsDataURL(file);
     }
   };
-  
-  const handleSaveChanges = async () => {
-    if (!firebaseUser || !newPhoto) return;
-    setIsSaving(true);
+
+  const handleUnblock = async (uid: string) => {
+    if (!firebaseUser) return;
     try {
-      await update(ref(db, `users/${firebaseUser.uid}`), { photoURL: newPhoto });
-      toast({
-        title: 'Profile Updated',
-        description: 'Your new profile picture has been saved.',
-      });
-      setNewPhoto(null);
+      await remove(ref(db, `users/${firebaseUser.uid}/blocked/${uid}`));
+      toast({ title: 'User Unblocked' });
     } catch (error) {
-       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save your new picture. Please try again.',
-      });
-    } finally {
-      setIsSaving(false);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to unblock user.' });
     }
-  }
+  };
 
   if (!profile) return null;
 
@@ -125,17 +157,10 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Your Profile</DialogTitle>
-          <DialogDescription>Manage your account settings and preferences.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="flex flex-col items-center gap-4">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handlePhotoUpload}
-              accept="image/*"
-              className="hidden"
-            />
+            <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
             <Avatar className="h-24 w-24 cursor-pointer relative group" onClick={() => fileInputRef.current?.click()}>
               <AvatarImage src={newPhoto ?? profile.photoURL ?? undefined} alt={profile.name} />
               <AvatarFallback className="text-4xl">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -144,39 +169,104 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
                 </div>
             </Avatar>
             <div>
-              <p className="text-xl font-semibold text-center">{profile.name}</p>
+              <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setIsEditingName(false)} autoFocus />
+                ) : (
+                  <p className="text-xl font-semibold text-center">{name}</p>
+                )}
+                <Edit2 className="w-4 h-4 text-muted-foreground cursor-pointer" onClick={() => setIsEditingName(true)} />
+              </div>
               <p className="text-sm text-muted-foreground text-center">@{profile.username}</p>
+              <p className="text-sm text-muted-foreground text-center mt-1">{profile.email}</p>
             </div>
-            {newPhoto && (
-              <Button size="sm" onClick={handleSaveChanges} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Picture'}
-              </Button>
-            )}
           </div>
-          <div>
-            <h3 className="text-sm font-medium mb-2">Blocked Users</h3>
-            <ScrollArea className="h-32 rounded-md border p-2">
-              {blockedUsers.length > 0 ? (
-                blockedUsers.map(user => (
-                  <div key={user.uid} className="flex items-center justify-between p-1 rounded hover:bg-secondary">
-                    <div className="text-sm">
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">@{user.username}</p>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => handleUnblock(user.uid)}>Unblock</Button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground text-center p-4">No blocked users.</p>
-              )}
-            </ScrollArea>
-          </div>
+
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="about">
+              <AccordionTrigger>About</AccordionTrigger>
+              <AccordionContent className="space-y-2">
+                {isEditingBio ? (
+                  <Textarea value={bio} onChange={(e) => setBio(e.target.value)} onBlur={() => setIsEditingBio(false)} autoFocus />
+                ) : (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{bio || 'No bio yet.'}</p>
+                )}
+                 <Button variant="ghost" size="sm" className="w-full" onClick={() => setIsEditingBio(p => !p)}>
+                    {isEditingBio ? 'Done' : 'Edit Bio'}
+                 </Button>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="privacy">
+              <AccordionTrigger>Privacy Settings</AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="online-status">Show Online Status</Label>
+                  <Switch id="online-status" checked={onlineStatus} onCheckedChange={setOnlineStatus} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="privacy-photo">Who can see my profile photo?</Label>
+                    <Select value={privacy.profilePhoto} onValueChange={(v) => setPrivacy(p => ({...p, profilePhoto: v as any}))}>
+                      <SelectTrigger id="privacy-photo"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="everyone">Everyone</SelectItem>
+                        <SelectItem value="contacts">My Contacts</SelectItem>
+                        <SelectItem value="nobody">Nobody</SelectItem>
+                      </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="privacy-about">Who can see my about info?</Label>
+                    <Select value={privacy.about} onValueChange={(v) => setPrivacy(p => ({...p, about: v as any}))}>
+                      <SelectTrigger id="privacy-about"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="everyone">Everyone</SelectItem>
+                        <SelectItem value="contacts">My Contacts</SelectItem>
+                        <SelectItem value="nobody">Nobody</SelectItem>
+                      </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="privacy-lastseen">Who can see my last seen?</Label>
+                     <Select value={privacy.lastSeen} onValueChange={(v) => setPrivacy(p => ({...p, lastSeen: v as any}))}>
+                      <SelectTrigger id="privacy-lastseen"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="everyone">Everyone</SelectItem>
+                        <SelectItem value="contacts">My Contacts</SelectItem>
+                        <SelectItem value="nobody">Nobody</SelectItem>
+                      </SelectContent>
+                    </Select>
+                 </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="blocked">
+              <AccordionTrigger>Blocked Users</AccordionTrigger>
+              <AccordionContent>
+                 <ScrollArea className="h-32">
+                  {blockedUsers.length > 0 ? (
+                    blockedUsers.map(user => (
+                      <div key={user.uid} className="flex items-center justify-between p-1 rounded hover:bg-secondary">
+                        <p className="text-sm font-medium">{user.name}</p>
+                        <Button size="sm" variant="outline" onClick={() => handleUnblock(user.uid)}>Unblock</Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center p-4">No blocked users.</p>
+                  )}
+                </ScrollArea>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
         <DialogFooter className="grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           <Button variant="destructive" onClick={logout}>Log Out</Button>
+          <Button onClick={handleSaveChanges} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+

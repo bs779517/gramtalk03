@@ -15,12 +15,14 @@ import { db } from '@/lib/firebase';
 import { ref, get, set, query, orderByChild, equalTo } from 'firebase/database';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Camera } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   username: z.string()
     .min(3, { message: 'Username must be at least 3 characters.' })
     .regex(/^[a-z0-9_.]+$/, { message: 'Username can only contain lowercase letters, numbers, underscores, and periods.' }),
+  bio: z.string().max(150, { message: 'Bio cannot be longer than 150 characters.' }).optional(),
 });
 
 interface ProfileSetupModalProps {
@@ -36,7 +38,7 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: '', username: '' },
+    defaultValues: { name: '', username: '', bio: '' },
   });
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,6 +75,14 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
         name: values.name,
         username: values.username,
         photoURL: photo,
+        bio: values.bio || '',
+        privacy: {
+          profilePhoto: 'everyone',
+          about: 'everyone',
+          lastSeen: 'everyone',
+        },
+        onlineStatus: 'online',
+        lastSeen: Date.now(),
       };
 
       await set(ref(db, `users/${firebaseUser.uid}`), userProfile);
@@ -150,6 +160,19 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
                   <FormLabel>Username</FormLabel>
                   <FormControl>
                     <Input placeholder="jane.doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="bio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>About / Bio</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Tell everyone a little about yourself..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

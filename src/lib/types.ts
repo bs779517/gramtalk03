@@ -9,6 +9,14 @@ export interface UserProfile {
   username: string;
   email: string;
   photoURL?: string | null;
+  bio?: string;
+  lastSeen?: number;
+  onlineStatus?: 'online' | 'offline';
+  privacy?: {
+    profilePhoto: 'everyone' | 'contacts' | 'nobody';
+    about: 'everyone' | 'contacts' | 'nobody';
+    lastSeen: 'everyone' | 'contacts' | 'nobody';
+  };
   blocked?: Record<string, true>;
   contacts?: Record<string, true>;
   groups?: Record<string, true>;
@@ -32,7 +40,7 @@ to: string;
 }
 
 export interface Call {
-  id: string;
+  id:string;
   type: 'video' | 'voice';
   from: string;
   fromName: string;
