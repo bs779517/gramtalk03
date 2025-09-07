@@ -80,8 +80,8 @@ export default function AppShell() {
 
   return (
     <>
-      <div className="flex h-screen w-screen items-center justify-center bg-muted/50 p-4">
-        <div className="relative h-full w-full max-w-[450px] max-h-[950px] overflow-hidden rounded-2xl bg-background shadow-2xl flex flex-col">
+      <div className="h-screen w-screen bg-background flex flex-col">
+        <div className="relative h-full w-full overflow-hidden flex flex-col">
           {renderView()}
           
           {/* Modals */}
