@@ -25,7 +25,6 @@ export default function AppShell() {
     activeModal, 
     showModal,
     setIncomingCall,
-    activeCall
   } = useApp();
 
   const { toast } = useToast();
@@ -56,6 +55,7 @@ export default function AppShell() {
 
 
   const renderView = () => {
+    // If we're loading authentication state or profile, show a spinner.
     if (isLoading) {
       return (
         <div className="flex h-full items-center justify-center">
@@ -64,17 +64,24 @@ export default function AppShell() {
       );
     }
 
-    if (!firebaseUser || (firebaseUser && !profile?.username)) {
+    // If there is no user, or if there is a user but they haven't set up a profile yet.
+    if (!firebaseUser) {
       return <AuthView />;
     }
+    
+    if (!profile?.username) {
+        return <AuthView />;
+    }
 
+    // Otherwise, the user is authenticated and has a profile.
     switch (activeView) {
       case 'main':
         return <MainView />;
       case 'chat':
         return <ChatView />;
       default:
-        return <AuthView />;
+        // As a fallback, show the main view if the view state is unexpected.
+        return <MainView />;
     }
   };
 
