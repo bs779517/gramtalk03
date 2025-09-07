@@ -3,17 +3,19 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2 } from 'lucide-react';
+import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2, Search, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { onValue, ref, off, query, orderByChild, equalTo, remove } from 'firebase/database';
+import { onValue, ref, off, query, orderByChild, equalTo, remove, set, update, get, startAt, endAt } from 'firebase/database';
 import type { UserProfile, FriendRequest, CallHistoryItem, Group } from '@/lib/types';
 import { FriendSuggestions } from '@/components/friend-suggestions';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import CreateGroupModal from '../modals/create-group-modal';
+import { useToast } from '@/hooks/use-toast';
 
 export function MainView() {
   const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat } = useApp();
@@ -24,6 +26,13 @@ export function MainView() {
   const [unreadMessages, setUnreadMessages] = useState<Record<string, number>>({});
   const [groups, setGroups] = useState<Group[]>([]);
   const [isCreateGroupModalOpen, setCreateGroupModalOpen] = useState(false);
+  
+  // Group Search State
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+  const [groupSearchResults, setGroupSearchResults] = useState<Group[]>([]);
+  const [isSearchingGroups, setIsSearchingGroups] = useState(false);
+  
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!firebaseUser || !profile) return;
@@ -38,6 +47,8 @@ export function MainView() {
             if (groupSnap.exists()) {
               resolve({ id, ...groupSnap.val()});
             } else {
+              // Clean up stale group entries
+              remove(ref(db, `users/${firebaseUser.uid}/groups/${id}`));
               resolve(null);
             }
           }, { onlyOnce: true });
@@ -108,8 +119,8 @@ export function MainView() {
   const handleAcceptRequest = async (request: FriendRequest) => {
     if (!firebaseUser) return;
     await Promise.all([
-      ref(db, `users/${firebaseUser.uid}/contacts/${request.from}`).set(true),
-      ref(db, `users/${request.from}/contacts/${firebaseUser.uid}`).set(true),
+      set(ref(db, `users/${firebaseUser.uid}/contacts/${request.from}`), true),
+      set(ref(db, `users/${request.from}/contacts/${firebaseUser.uid}`), true),
       remove(ref(db, `requests/${request.id}`))
     ]);
   };
@@ -131,6 +142,57 @@ export function MainView() {
     setActiveView('chat'); 
   };
   
+  const handleSearchGroups = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupSearchQuery.trim() || !firebaseUser) return;
+    setIsSearchingGroups(true);
+
+    try {
+      const groupsRef = ref(db, 'groups');
+      const q = query(groupsRef, orderByChild('name'), startAt(groupSearchQuery), endAt(groupSearchQuery + '\uf8ff'));
+      const snapshot = await get(q);
+
+      if (snapshot.exists()) {
+        const allGroups = snapshot.val();
+        const publicGroups = Object.values(allGroups).filter((group: any) => group.isPublic && !group.members[firebaseUser.uid]) as Group[];
+        setGroupSearchResults(publicGroups);
+        if (publicGroups.length === 0) {
+          toast({ title: 'No new groups found', description: 'Try a different search term.'});
+        }
+      } else {
+        setGroupSearchResults([]);
+        toast({ title: 'No groups found', description: 'No public groups match your search.'});
+      }
+    } catch(error) {
+       toast({ variant: 'destructive', title: 'Search Error', description: 'Could not perform group search.' });
+    } finally {
+      setIsSearchingGroups(false);
+    }
+  }
+
+  const handleJoinGroup = async (group: Group) => {
+    if (!firebaseUser) return;
+    
+    try {
+      const updates: Record<string, any> = {};
+      updates[`/groups/${group.id}/members/${firebaseUser.uid}`] = true;
+      updates[`/users/${firebaseUser.uid}/groups/${group.id}`] = true;
+      
+      await update(ref(db), updates);
+
+      toast({
+        title: 'Joined Group!',
+        description: `You are now a member of ${group.name}.`
+      });
+      
+      setGroupSearchResults(prev => prev.filter(g => g.id !== group.id));
+
+    } catch (error) {
+       toast({ variant: 'destructive', title: 'Error', description: 'Could not join group.' });
+    }
+  }
+
+
   const NavButton = ({ tabName, icon, label }: { tabName: string, icon: React.ReactNode, label: string }) => {
     const isActive = activeTab === tabName;
     let badgeCount = 0;
@@ -177,26 +239,62 @@ export function MainView() {
         );
       case 'groups':
          return (
-          <div className="p-2">
-             <Button className="w-full mb-4" onClick={() => setCreateGroupModalOpen(true)}>
-                <PlusCircle className="mr-2"/> Create New Group
-            </Button>
-            {groups.length > 0 ? (
-              groups.map(group => (
-                <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openGroupChat(group)}>
-                  <Avatar>
-                    <AvatarImage src={group.photoURL} />
-                    <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-3 flex-grow">
-                    <p className="font-semibold">{group.name}</p>
-                    <p className="text-xs text-muted-foreground">{Object.keys(group.members).length} members</p>
-                  </div>
+          <div className="p-4 space-y-4">
+            <div>
+              <form onSubmit={handleSearchGroups} className="flex items-center gap-2 mb-4">
+                <Input
+                  placeholder="Search for public groups..."
+                  value={groupSearchQuery}
+                  onChange={(e) => setGroupSearchQuery(e.target.value)}
+                />
+                <Button type="submit" size="icon" disabled={isSearchingGroups}>
+                  {isSearchingGroups ? <Loader2 className="animate-spin"/> : <Search />}
+                </Button>
+              </form>
+              {groupSearchResults.length > 0 && (
+                <div className="space-y-2">
+                   <h3 className="font-semibold px-2 mb-2">Search Results</h3>
+                  {groupSearchResults.map(group => (
+                    <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
+                      <Avatar>
+                        <AvatarImage src={group.photoURL} />
+                        <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="ml-3 flex-grow">
+                        <p className="font-semibold">{group.name}</p>
+                        <p className="text-xs text-muted-foreground">{Object.keys(group.members).length} members</p>
+                      </div>
+                      <Button size="sm" onClick={() => handleJoinGroup(group)}>Join</Button>
+                    </div>
+                  ))}
                 </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground p-8">No groups yet. Create one to start chatting!</p>
-            )}
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                  <h3 className="font-semibold px-2">Your Groups</h3>
+                   <Button variant="ghost" size="sm" onClick={() => setCreateGroupModalOpen(true)}>
+                      <PlusCircle className="mr-2 h-4 w-4"/> New Group
+                  </Button>
+              </div>
+              {groups.length > 0 ? (
+                groups.map(group => (
+                  <div key={group.id} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openGroupChat(group)}>
+                    <Avatar>
+                      <AvatarImage src={group.photoURL} />
+                      <AvatarFallback>{group.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="ml-3 flex-grow">
+                      <p className="font-semibold">{group.name}</p>
+                      <p className="text-xs text-muted-foreground">{Object.keys(group.members).length} members</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground p-8">No groups yet. Create or search for one to start chatting!</p>
+              )}
+            </div>
           </div>
         );
       case 'updates':

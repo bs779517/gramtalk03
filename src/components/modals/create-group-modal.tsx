@@ -21,6 +21,7 @@ import { Camera } from 'lucide-react';
 const formSchema = z.object({
   groupName: z.string().min(3, { message: 'Group name must be at least 3 characters.' }),
   members: z.array(z.string()).min(1, { message: 'You must select at least one member.' }),
+  isPublic: z.boolean().default(false),
 });
 
 interface CreateGroupModalProps {
@@ -38,7 +39,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { groupName: '', members: [] },
+    defaultValues: { groupName: '', members: [], isPublic: false },
   });
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,6 +78,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
         members: membersObject,
+        isPublic: values.isPublic,
       };
 
       await set(newGroupRef, newGroupData);
@@ -162,8 +164,8 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
               name="members"
               render={() => (
                 <FormItem>
-                  <FormLabel>Select Members</FormLabel>
-                   <ScrollArea className="h-40 rounded-md border p-2">
+                  <FormLabel>Select Members (from contacts)</FormLabel>
+                   <ScrollArea className="h-32 rounded-md border p-2">
                     {contacts.map((contact) => (
                       <FormField
                         key={contact.uid}
@@ -197,6 +199,28 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
                 </FormItem>
               )}
             />
+             <FormField
+                control={form.control}
+                name="isPublic"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-2 rounded-md">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer">
+                        Public Group
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Anyone can find and join this group.
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
               <Button type="submit" disabled={isLoading}>

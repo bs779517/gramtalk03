@@ -56,6 +56,6 @@ export interface Group {
   createdBy: string;
   createdAt: number;
   members: Record<string, true>; // UIDs of members
+  isPublic?: boolean;
 }
-
     
