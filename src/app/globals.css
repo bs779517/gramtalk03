@@ -24,7 +24,8 @@
     --input: 0 0% 89.8%;
     --ring: 199 78% 52%;
     --radius: 0.8rem;
-    --chat-background: 30 25% 90%;
+    --chat-background: 225 16% 87%;
+    --outgoing-chat-bubble: 204 70% 92%;
   }
 
   .dark {
@@ -47,7 +48,8 @@
     --border: 0 0% 25%;
     --input: 0 0% 25%;
     --ring: 199 78% 52%;
-    --chat-background: 30 15% 15%;
+    --chat-background: 225 10% 18%;
+    --outgoing-chat-bubble: 204 20% 25%;
   }
 }
 
@@ -63,7 +65,7 @@
 @layer utilities {
   .chat-bg {
     background-color: hsl(var(--chat-background));
-    background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='hsl(var(--muted-foreground))' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("https://www.transparenttextures.com/patterns/az-subtle.png");
   }
 }
 

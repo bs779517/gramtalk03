@@ -25,6 +25,7 @@ export interface UserProfile {
 export interface Message {
   id: string;
   from: string;
+  fromName: string;
   to: string; // Can be a user UID or a group ID
   text: string;
   ts: number;

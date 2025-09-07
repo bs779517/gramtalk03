@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 export function ChatView() {
-  const { firebaseUser, chatPartner, groupChat, setActiveView, startCall, allUsers } = useApp();
+  const { firebaseUser, profile, chatPartner, groupChat, setActiveView, startCall, allUsers } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -63,6 +63,7 @@ export function ChatView() {
 
     const message: Omit<Message, 'id'> = {
       from: firebaseUser.uid,
+      fromName: profile?.name || 'Unknown User', // Add sender name
       to: isGroupChat ? groupChat.id : chatPartner!.uid,
       text: newMessage.trim(),
       ts: serverTimestamp() as any,
@@ -98,7 +99,7 @@ export function ChatView() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <header className="flex items-center p-2 border-b gap-2 shadow-sm">
+      <header className="flex items-center p-2 border-b gap-2 shadow-sm bg-secondary">
         <Button variant="ghost" size="icon" onClick={() => setActiveView('main')}>
           <ArrowLeft />
         </Button>
@@ -132,31 +133,22 @@ export function ChatView() {
 
       <ScrollArea className="flex-grow chat-bg" ref={scrollAreaRef}>
         <div className="p-4 space-y-2">
-          {messages.map((msg, index) => {
+          {messages.map((msg) => {
             const isMe = msg.from === firebaseUser?.uid;
-            const sender = getSender(msg.from);
-            const showSenderInfo = isGroupChat && !isMe && (index === 0 || messages[index-1]?.from !== msg.from);
-
+            
             return (
-              <div key={msg.id} className={cn('flex items-end gap-2', isMe ? 'flex-row-reverse' : 'flex-row')}>
-                {!isMe && (
-                   <Avatar className="w-8 h-8">
-                     <AvatarImage src={sender?.photoURL ?? undefined} />
-                     <AvatarFallback>{sender?.name.charAt(0) ?? '?'}</AvatarFallback>
-                   </Avatar>
-                )}
-                <div className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
-                  {showSenderInfo && <p className="text-xs text-muted-foreground ml-3 mb-1">{sender?.name ?? 'Unknown User'}</p>}
-                  <div
-                      className={cn(
-                      'p-3 rounded-2xl max-w-[75%]', 
-                      isMe 
-                          ? 'bg-primary text-primary-foreground rounded-br-none' 
-                          : 'bg-card text-card-foreground rounded-bl-none'
-                      )}>
-                      <p className="text-sm">{msg.text}</p>
-                      <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.ts), 'p')}</p>
-                  </div>
+              <div key={msg.id} className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
+                <div className={cn(
+                  'p-2 px-3 rounded-lg max-w-[80%] relative shadow-sm', 
+                  isMe 
+                      ? 'bg-[hsl(var(--outgoing-chat-bubble))] rounded-br-none' 
+                      : 'bg-card rounded-bl-none'
+                  )}>
+                    {isGroupChat && !isMe && <p className="text-xs font-semibold text-primary mb-1">{msg.fromName}</p>}
+                    <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                    <p className="text-xs text-muted-foreground mt-1 text-right float-right ml-4">
+                        {msg.ts ? format(new Date(msg.ts), 'p') : '...'}
+                    </p>
                 </div>
               </div>
             );
@@ -164,7 +156,7 @@ export function ChatView() {
         </div>
       </ScrollArea>
 
-      <footer className="p-2 border-t bg-background">
+      <footer className="p-2 border-t bg-secondary">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Input
             value={newMessage}
