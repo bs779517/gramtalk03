@@ -62,6 +62,7 @@ export interface CallHistoryItem {
 export interface Group {
   id: string;
   name: string;
+  description?: string;
   photoURL: string | null;
   createdBy: string;
   createdAt: number;

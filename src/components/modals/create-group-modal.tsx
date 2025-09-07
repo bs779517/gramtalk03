@@ -17,10 +17,12 @@ import { ref, push, set, serverTimestamp, update } from 'firebase/database';
 import type { UserProfile } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Camera } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
 
 const formSchema = z.object({
   groupName: z.string().min(3, { message: 'Group name must be at least 3 characters.' }),
-  members: z.array(z.string()).min(1, { message: 'You must select at least one member.' }),
+  description: z.string().optional(),
+  members: z.array(z.string()).min(0),
   isPublic: z.boolean().default(false),
 });
 
@@ -39,7 +41,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { groupName: '', members: [], isPublic: false },
+    defaultValues: { groupName: '', description: '', members: [], isPublic: false },
   });
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,6 +76,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
       const newGroupData = {
         id: groupId,
         name: values.groupName,
+        description: values.description || '',
         photoURL: groupPhoto,
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
@@ -159,6 +162,19 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
                 </FormItem>
               )}
             />
+             <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="What is this group about?" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="members"
@@ -166,7 +182,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
                 <FormItem>
                   <FormLabel>Select Members (from contacts)</FormLabel>
                    <ScrollArea className="h-32 rounded-md border p-2">
-                    {contacts.map((contact) => (
+                    {contacts.length > 0 ? contacts.map((contact) => (
                       <FormField
                         key={contact.uid}
                         control={form.control}
@@ -193,7 +209,7 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
                           </FormItem>
                         )}
                       />
-                    ))}
+                    )) : <p className="text-sm text-muted-foreground text-center p-4">Add contacts to invite them to groups.</p>}
                   </ScrollArea>
                   <FormMessage />
                 </FormItem>
