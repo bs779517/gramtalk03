@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,14 +15,12 @@ import { db } from '@/lib/firebase';
 import { ref, get, set, query, orderByChild, equalTo } from 'firebase/database';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Camera } from 'lucide-react';
-import { Textarea } from '../ui/textarea';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   username: z.string()
     .min(3, { message: 'Username must be at least 3 characters.' })
     .regex(/^[a-z0-9_.]+$/, { message: 'Username can only contain lowercase letters, numbers, underscores, and periods.' }),
-  bio: z.string().max(150, { message: 'Bio cannot be longer than 150 characters.' }).optional(),
 });
 
 interface ProfileSetupModalProps {
@@ -32,25 +30,12 @@ interface ProfileSetupModalProps {
 export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
   const { firebaseUser, showModal } = useApp();
   const [isLoading, setIsLoading] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: '', username: '', bio: '' },
+    defaultValues: { name: '', username: '' },
   });
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!firebaseUser) return;
@@ -74,8 +59,8 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
         email: firebaseUser.email,
         name: values.name,
         username: values.username,
-        photoURL: photo,
-        bio: values.bio || '',
+        photoURL: null,
+        bio: '',
         privacy: {
           profilePhoto: 'everyone',
           about: 'everyone',
@@ -94,7 +79,6 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
       
       showModal(null);
       form.reset();
-      setPhoto(null);
 
     } catch (error) {
       toast({
@@ -113,32 +97,11 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
         <DialogHeader>
           <DialogTitle>Complete Your Profile</DialogTitle>
           <DialogDescription>
-            Choose a display name, a unique username, and a profile picture.
+            Choose a display name and a unique username.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <div className="flex flex-col items-center space-y-2">
-               <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handlePhotoUpload}
-                accept="image/*"
-                className="hidden"
-              />
-              <Avatar className="w-24 h-24 cursor-pointer relative group" onClick={() => fileInputRef.current?.click()}>
-                <AvatarImage src={photo ?? undefined} alt="Profile Photo" />
-                <AvatarFallback className="text-4xl">
-                  {form.watch('name')?.charAt(0) || '?'}
-                </AvatarFallback>
-                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                  <Camera className="text-white" />
-                </div>
-              </Avatar>
-              <Button type="button" variant="link" onClick={() => fileInputRef.current?.click()}>
-                Set Profile Photo
-              </Button>
-            </div>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
             <FormField
               control={form.control}
               name="name"
@@ -160,19 +123,6 @@ export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
                   <FormLabel>Username</FormLabel>
                   <FormControl>
                     <Input placeholder="jane.doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="bio"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>About / Bio</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Tell everyone a little about yourself..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
