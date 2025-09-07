@@ -6,7 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { ref, onValue, off, remove, set, push } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
 import type { FirebaseUser, UserProfile, Call, CallHistoryItem } from '@/lib/types';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 type View = 'auth' | 'main' | 'chat';
 type ModalType = 'profileSetup' | 'addFriend' | 'profileView' | 'incomingCall' | null;
@@ -329,7 +329,7 @@ export const useApp = () => {
 async function get(ref: any) {
   return new Promise((resolve) => {
     onValue(ref, (snapshot) => {
-      resolve(snapshot);
+      resolve(snapshot.val());
     }, { onlyOnce: true });
   });
 }
