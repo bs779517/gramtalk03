@@ -288,7 +288,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
     if(firebaseUser) {
         const userStatusRef = ref(db, `users/${firebaseUser.uid}`);
-        await set(userStatusRef, { ...profile, onlineStatus: 'offline', lastSeen: Date.now() });
+        await update(userStatusRef, { onlineStatus: 'offline', lastSeen: Date.now() });
     }
     await auth.signOut();
     cleanupCall();
@@ -299,7 +299,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setChatPartner(null);
     setGroupChat(null);
     setActiveModal(null);
-  }, [cleanupCall, firebaseUser, profile]);
+  }, [cleanupCall, firebaseUser]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -384,5 +384,3 @@ export const useApp = () => {
   if (context === undefined) throw new Error('useApp must be used within an AppProvider');
   return context;
 };
-
-    

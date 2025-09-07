@@ -234,5 +234,3 @@ export default function CreateGroupModal({ isOpen, onClose, currentUser, contact
   );
 }
     
-
-    
