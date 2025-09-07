@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { db } from '@/lib/firebase';
 import { ref, onValue, off, remove } from 'firebase/database';
@@ -82,6 +82,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
         <div className="space-y-4 py-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
+              <AvatarImage src={profile.photoURL ?? undefined} alt={profile.name} />
               <AvatarFallback className="text-2xl">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>

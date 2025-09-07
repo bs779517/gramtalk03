@@ -6,7 +6,7 @@ import { useApp } from '@/context/app-provider';
 import { suggestFriendsSharedConnections, SuggestFriendsSharedConnectionsOutput } from '@/ai/flows/suggest-friends-shared-connections';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, UserPlus, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
@@ -81,6 +81,7 @@ export function FriendSuggestions() {
             {suggestions.map((suggestion) => (
               <div key={suggestion.uid} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary">
                 <Avatar>
+                  <AvatarImage src={(allUsers?.[suggestion.uid] as any)?.photoURL ?? undefined} alt={suggestion.name} />
                   <AvatarFallback>{suggestion.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-grow">

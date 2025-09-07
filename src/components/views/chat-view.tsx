@@ -91,9 +91,9 @@ export function ChatView() {
     );
   }
 
-  const getSenderName = (fromUid: string) => {
-    if (!allUsers) return '...';
-    return allUsers[fromUid]?.name || 'Unknown';
+  const getSender = (fromUid: string) => {
+    if (!allUsers) return null;
+    return allUsers[fromUid] || null;
   };
 
   return (
@@ -103,7 +103,7 @@ export function ChatView() {
           <ArrowLeft />
         </Button>
         <Avatar>
-          <AvatarImage src={isGroupChat ? groupChat.photoURL ?? undefined : undefined} />
+          <AvatarImage src={isGroupChat ? groupChat.photoURL ?? undefined : (chatPartner as UserProfile)?.photoURL ?? undefined} />
           <AvatarFallback>{chatTarget.name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex-grow">
@@ -134,20 +134,29 @@ export function ChatView() {
         <div className="p-4 space-y-2">
           {messages.map((msg, index) => {
             const isMe = msg.from === firebaseUser?.uid;
-            const showSender = isGroupChat && !isMe && (index === 0 || messages[index-1]?.from !== msg.from);
+            const sender = getSender(msg.from);
+            const showSenderInfo = isGroupChat && !isMe && (index === 0 || messages[index-1]?.from !== msg.from);
 
             return (
-              <div key={msg.id} className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
-                 {showSender && <p className="text-xs text-muted-foreground ml-3 mb-1">{getSenderName(msg.from)}</p>}
-                <div
-                    className={cn(
-                    'p-3 rounded-2xl max-w-[75%]', 
-                    isMe 
-                        ? 'bg-primary text-primary-foreground rounded-br-none' 
-                        : 'bg-card text-card-foreground rounded-bl-none'
-                    )}>
-                    <p className="text-sm">{msg.text}</p>
-                    <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.ts), 'p')}</p>
+              <div key={msg.id} className={cn('flex items-end gap-2', isMe ? 'flex-row-reverse' : 'flex-row')}>
+                {!isMe && (
+                   <Avatar className="w-8 h-8">
+                     <AvatarImage src={sender?.photoURL ?? undefined} />
+                     <AvatarFallback>{sender?.name.charAt(0) ?? '?'}</AvatarFallback>
+                   </Avatar>
+                )}
+                <div className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
+                  {showSenderInfo && <p className="text-xs text-muted-foreground ml-3 mb-1">{sender?.name ?? 'Unknown User'}</p>}
+                  <div
+                      className={cn(
+                      'p-3 rounded-2xl max-w-[75%]', 
+                      isMe 
+                          ? 'bg-primary text-primary-foreground rounded-br-none' 
+                          : 'bg-card text-card-foreground rounded-bl-none'
+                      )}>
+                      <p className="text-sm">{msg.text}</p>
+                      <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.ts), 'p')}</p>
+                  </div>
                 </div>
               </div>
             );
@@ -172,5 +181,3 @@ export function ChatView() {
     </div>
   );
 }
-
-    

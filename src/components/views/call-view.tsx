@@ -2,7 +2,7 @@
 'use client';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Mic, MicOff, Video, VideoOff, Phone, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -67,12 +67,13 @@ export function CallView() {
         <div className="text-center mt-8">
           <Avatar className={cn("w-24 h-24 mx-auto", isVideoCall ? 'hidden' : 'flex')}>
             {remoteStream ? (
-               <AvatarFallback className="text-4xl"><User/></AvatarFallback>
+               <AvatarImage src={activeCall.partner.photoURL ?? undefined} />
             ) : (
               <AvatarFallback className="text-4xl bg-primary/20 animate-pulse">
                 {activeCall.partner.name?.charAt(0).toUpperCase()}
               </AvatarFallback>
             )}
+             <AvatarFallback className="text-4xl">{activeCall.partner.name?.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <h2 className="text-3xl font-bold mt-4">{activeCall.partner.name}</h2>
           <p className="text-lg opacity-80">{activeCall.status === 'connecting' ? 'Connecting...' : 'In call'}</p>

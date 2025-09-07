@@ -8,6 +8,7 @@ export interface UserProfile {
   name: string;
   username: string;
   email: string;
+  photoURL?: string | null;
   blocked?: Record<string, true>;
   contacts?: Record<string, true>;
   groups?: Record<string, true>;
@@ -24,7 +25,7 @@ export interface Message {
 export interface FriendRequest {
   id: string;
   from: string;
-  to: string;
+to: string;
   fromName: string;
   fromUsername: string;
   createdAt: number;

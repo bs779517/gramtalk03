@@ -221,6 +221,7 @@ export function MainView() {
               contacts.map(contact => (
                 <div key={contact.uid} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openChat(contact)}>
                   <Avatar>
+                    <AvatarImage src={contact.photoURL ?? undefined} alt={contact.name} />
                     <AvatarFallback>{contact.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3 flex-grow">
@@ -328,6 +329,7 @@ export function MainView() {
               callHistory.map(call => (
                 <div key={call.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
                   <Avatar>
+                    <AvatarImage src={call.with.photoURL ?? undefined} alt={call.with.name} />
                     <AvatarFallback>{call.with.name?.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3 flex-grow">
@@ -363,6 +365,7 @@ export function MainView() {
           </Button>
           <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('profileView')}>
             <Avatar className="w-8 h-8">
+              <AvatarImage src={profile?.photoURL ?? undefined} alt={profile?.name} />
               <AvatarFallback className="bg-primary-foreground text-primary text-xs font-bold">
                 {profile?.name?.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -393,6 +396,4 @@ export function MainView() {
     </div>
   );
 }
-
     
-
