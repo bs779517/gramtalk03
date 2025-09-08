@@ -33,11 +33,11 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   const profile = isMyProfile ? myProfile : profileToView;
 
   // State for various profile fields
-  const [name, setName] = useState(profile?.name || '');
-  const [bio, setBio] = useState(profile?.bio || '');
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
   const [newPhoto, setNewPhoto] = useState<string | null>(null);
-  const [privacy, setPrivacy] = useState(profile?.privacy || { profilePhoto: 'everyone', about: 'everyone', lastSeen: 'everyone' });
-  const [onlineStatus, setOnlineStatus] = useState(profile?.onlineStatus === 'online');
+  const [privacy, setPrivacy] = useState({ profilePhoto: 'everyone', about: 'everyone', lastSeen: 'everyone' });
+  const [onlineStatus, setOnlineStatus] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<UserProfile[]>([]);
   
   const [isEditingName, setIsEditingName] = useState(false);
@@ -50,7 +50,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   useEffect(() => {
     // When the 'profile' object (either myProfile or profileToView) changes, update the local state.
     if (profile) {
-      setName(profile.name);
+      setName(profile.name || '');
       setBio(profile.bio || '');
       setPrivacy(profile.privacy || { profilePhoto: 'everyone', about: 'everyone', lastSeen: 'everyone' });
       setOnlineStatus(profile.onlineStatus === 'online');
@@ -87,21 +87,20 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   }, [firebaseUser, myProfile?.blocked, isMyProfile]);
   
   useEffect(() => {
+    // This effect handles cleanup when the modal closes.
     if (!open) {
-      setIsEditingName(false);
-      setIsEditingBio(false);
-      setNewPhoto(null);
-      
-      // Reset the viewed profile when modal closes to avoid stale data
+      // Small delay to allow closing animation to finish before resetting state
       const timer = setTimeout(() => {
-        if (!isMyProfile) {
-          setProfileToView(null);
-        }
-      }, 300); // Delay to allow modal to close gracefully
+        setIsEditingName(false);
+        setIsEditingBio(false);
+        setNewPhoto(null);
+        // Crucially, reset the profileToView so the modal is fresh next time
+        setProfileToView(null);
+      }, 300);
       
       return () => clearTimeout(timer);
     }
-  }, [open, isMyProfile, setProfileToView]);
+  }, [open, setProfileToView]);
 
 
   const handleSaveChanges = async () => {
