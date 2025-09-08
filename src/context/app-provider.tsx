@@ -65,7 +65,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [allUsers, setAllUsers] = useState<Record<string, UserProfile> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [activeView, setActiveView] = useState<View>('auth');
+  const [activeView, _setActiveView] = useState<View>('auth');
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [chatPartner, setChatPartnerInternal] = useState<UserProfile | null>(null);
   const [groupChat, setGroupChatInternal] = useState<Group | null>(null);
@@ -83,6 +83,33 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const { toast } = useToast();
+
+  const setActiveView = useCallback((view: View) => {
+    _setActiveView(view);
+    if (typeof window !== 'undefined') {
+      if (view === 'chat') {
+        window.location.hash = 'chat';
+      } else if (view === 'main' && window.location.hash === '#chat') {
+        window.history.back();
+      } else if (view === 'main') {
+        window.location.hash = '';
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash !== '#chat') {
+        _setActiveView(prev => (prev === 'chat' ? 'main' : prev));
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
   
   const updateProfile = async (profileData: Partial<UserProfile>) => {
     if (!firebaseUser) return;
@@ -356,7 +383,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setChatPartner(null);
     setGroupChat(null);
     setActiveModal(null);
-  }, [cleanupCall, firebaseUser, activeCall]);
+  }, [cleanupCall, firebaseUser, activeCall, setActiveView]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -369,7 +396,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
     return () => unsubscribeAuth();
-  }, []);
+  }, [setActiveView]);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -407,7 +434,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         const userProfile = snapshot.val() as UserProfile;
         setProfile(userProfile);
         if (userProfile?.username) {
-          setActiveView('main');
+          if (window.location.hash === '#chat') {
+            _setActiveView('chat');
+          } else {
+             setActiveView('main');
+          }
           setActiveModal(null);
         } else if (firebaseUser) {
           setActiveView('auth');
@@ -424,7 +455,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         profileUnsubscribe();
       }
     };
-  }, [firebaseUser]);
+  }, [firebaseUser, setActiveView]);
 
   const showModal = (modal: ModalType) => setActiveModal(modal);
   
