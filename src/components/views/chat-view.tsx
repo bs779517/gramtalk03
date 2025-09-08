@@ -1,6 +1,6 @@
 
 'use client';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,16 +8,33 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Phone, Send, Video, Users, Check, CheckCheck } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { ref, onValue, off, push, serverTimestamp, set, update } from 'firebase/database';
+import { ref, onValue, off, push, serverTimestamp, set, update, remove } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
+
+// Debounce function
+const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debounced = (...args: Parameters<F>) => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+    timeout = setTimeout(() => func(...args), waitFor);
+  };
+
+  return debounced;
+};
+
 
 export function ChatView() {
   const { firebaseUser, profile, chatPartner, groupChat, setActiveView, startCall, allUsers } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [status, setStatus] = useState('');
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const isGroupChat = !!groupChat;
@@ -30,6 +47,27 @@ export function ChatView() {
     if (isGroupChat) return groupChat.id;
     return [firebaseUser.uid, chatPartner!.uid].sort().join('_');
   }, [firebaseUser, chatPartner, groupChat, isGroupChat, chatTarget]);
+
+
+  // Typing indicator logic
+  const sendTypingStatus = useCallback((isTyping: boolean) => {
+    if (!chatId || !firebaseUser || isGroupChat) return;
+    const typingRef = ref(db, `typing/${chatId}/${firebaseUser.uid}`);
+    if (isTyping) {
+      set(typingRef, true);
+    } else {
+      remove(typingRef);
+    }
+  }, [chatId, firebaseUser, isGroupChat]);
+
+  const debouncedSendTypingStatus = useRef(debounce(sendTypingStatus, 2000)).current;
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    sendTypingStatus(true);
+    debouncedSendTypingStatus(false);
+  };
+
 
   // Update message status to 'read' when chat is opened
   useEffect(() => {
@@ -78,9 +116,29 @@ export function ChatView() {
         }
       }
     });
+    
+     // Listen for partner's typing status
+    let typingListener: any;
+    if (chatPartner) {
+        const typingRef = ref(db, `typing/${chatId}/${chatPartner.uid}`);
+        typingListener = onValue(typingRef, (snapshot) => {
+            setIsPartnerTyping(snapshot.exists());
+        });
+    }
 
-    return () => off(messagesRef, 'value', listener);
-  }, [chatId, firebaseUser]);
+    return () => {
+        off(messagesRef, 'value', listener);
+        if (typingListener && chatPartner) {
+           const typingRef = ref(db, `typing/${chatId}/${chatPartner.uid}`);
+           off(typingRef, 'value', typingListener);
+        }
+        // Ensure typing status is removed when component unmounts
+        if (firebaseUser && chatId && !isGroupChat) {
+             const ownTypingRef = ref(db, `typing/${chatId}/${firebaseUser.uid}`);
+             remove(ownTypingRef);
+        }
+    }
+  }, [chatId, firebaseUser, chatPartner, isGroupChat]);
   
   useEffect(() => {
     setTimeout(() => {
@@ -92,7 +150,9 @@ export function ChatView() {
   }, [messages]);
 
   useEffect(() => {
-    if (isGroupChat && groupChat) {
+    if (isPartnerTyping) {
+        setStatus('typing...');
+    } else if (isGroupChat && groupChat) {
       setStatus(`${Object.keys(groupChat.members).length} members`);
     } else if (chatPartnerProfile) {
       if (chatPartnerProfile.onlineStatus === 'online') {
@@ -103,13 +163,17 @@ export function ChatView() {
         setStatus(`@${chatPartnerProfile.username}`);
       }
     }
-  }, [chatPartnerProfile, isGroupChat, groupChat]);
+  }, [chatPartnerProfile, isGroupChat, groupChat, isPartnerTyping]);
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !chatId || !firebaseUser || !chatTarget) return;
 
+    // Stop typing indicator on send
+    sendTypingStatus(false);
+    debouncedSendTypingStatus.cancel?.(); // Cancel any pending debounce
+    
     const messagesRef = ref(db, `messages/${chatId}`);
     const newMessageRef = push(messagesRef);
 
@@ -180,7 +244,9 @@ export function ChatView() {
         </div>
         <div className="flex-grow">
           <p className="font-semibold">{chatTarget.name || ""}</p>
-           <p className="text-xs text-muted-foreground">{status}</p>
+           <p className={cn("text-xs", isPartnerTyping ? "text-primary font-semibold" : "text-muted-foreground")}>
+            {status}
+           </p>
         </div>
         {isGroupChat ? (
              <Button variant="ghost" size="icon">
@@ -188,10 +254,10 @@ export function ChatView() {
             </Button>
         ) : (
           <>
-            <Button variant="ghost" size="icon" onClick={() => startCall(chatPartner!, 'voice')}>
+            <Button variant="ghost" size="icon" onClick={() => chatPartner && startCall(chatPartner, 'voice')}>
               <Phone />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => startCall(chatPartner!, 'video')}>
+            <Button variant="ghost" size="icon" onClick={() => chatPartner && startCall(chatPartner, 'video')}>
               <Video />
             </Button>
           </>
@@ -230,7 +296,7 @@ export function ChatView() {
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Input
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Type a message..."
             autoComplete="off"
             className="flex-grow"
@@ -243,3 +309,5 @@ export function ChatView() {
     </div>
   );
 }
+
+    
