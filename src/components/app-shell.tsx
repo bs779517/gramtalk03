@@ -30,7 +30,7 @@ export default function AppShell() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!firebaseUser) return;
+    if (!firebaseUser || !profile) return;
   
     const callsRef = ref(db, `calls/${firebaseUser.uid}`);
     
@@ -38,6 +38,7 @@ export default function AppShell() {
       const callsData = snapshot.val();
       if (callsData) {
         const callKeys = Object.keys(callsData);
+        // We only handle one incoming call at a time
         const incomingCallData = callsData[callKeys[0]] as Call;
         
         if (profile?.blocked?.[incomingCallData.from]) {
@@ -47,6 +48,21 @@ export default function AppShell() {
 
         setIncomingCall(incomingCallData);
         showModal('incomingCall');
+        
+        const ringtone = document.getElementById('ringtone') as HTMLAudioElement;
+        if (ringtone) {
+          ringtone.play().catch(e => console.error("Ringtone play failed:", e));
+        }
+
+      } else {
+        // If there are no calls, ensure the modal is closed and ringtone stops.
+        setIncomingCall(null);
+        showModal(null);
+        const ringtone = document.getElementById('ringtone') as HTMLAudioElement;
+        if (ringtone) {
+          ringtone.pause();
+          ringtone.currentTime = 0;
+        }
       }
     });
   

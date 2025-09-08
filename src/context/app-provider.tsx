@@ -1,9 +1,9 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, onValue, off, remove, set, push, get as getDb, serverTimestamp, onDisconnect, update } from 'firebase/database';
+import { ref, onValue, off, remove, set, push, get, serverTimestamp, onDisconnect, update } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
 import type { FirebaseUser, UserProfile, Call, CallHistoryItem, Group } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +15,7 @@ interface ActiveCall {
   partner: UserProfile;
   type: 'video' | 'voice';
   id: string;
-  status: 'connecting' | 'connected';
+  status: 'connecting' | 'connected' | 'ringing';
 }
 
 interface AppContextType {
@@ -73,11 +73,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   // WebRTC State
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
-  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
+  const peerConnection = useRef<RTCPeerConnection | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  
+  const callListeners = useRef<Record<string, () => void>>({});
+
 
   const { toast } = useToast();
   
@@ -98,176 +101,230 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setGroupChatInternal(group);
   };
 
-  const cleanupCall = useCallback(() => {
-    if (peerConnection) {
-      peerConnection.close();
-      setPeerConnection(null);
-    }
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-    }
-    setRemoteStream(null);
-    setActiveCall(null);
-    setIsMuted(false);
-    setIsVideoEnabled(true);
-  }, [peerConnection, localStream]);
-
-  const endCall = useCallback(async () => {
-    if (activeCall?.id && firebaseUser?.uid) {
-        const historyRef = ref(db, `callHistory/${firebaseUser.uid}/${activeCall.id}`);
-        const partnerHistoryRef = ref(db, `callHistory/${activeCall.partner.uid}/${activeCall.id}`);
-        
-        try {
-            const myHistorySnap = await getDb(historyRef);
-            const partnerHistorySnap = await getDb(partnerHistoryRef);
-
-            const myUpdate = { status: 'answered' };
-            const partnerUpdate = { status: 'answered' };
-
-            if (myHistorySnap.exists()) {
-                await set(historyRef, { ...myHistorySnap.val(), ...myUpdate });
-            }
-            if (partnerHistorySnap.exists()) {
-                await set(partnerHistoryRef, { ...partnerHistorySnap.val(), ...partnerUpdate });
-            }
-        } catch (e) {
-            // console.error("Error updating call history:", e);
+  const cleanupCall = useCallback(async (callId?: string, partnerUid?: string) => {
+      if (callId) {
+        // Clean up Firebase listeners and data
+        const currentListeners = callListeners.current;
+        for (const key in currentListeners) {
+            currentListeners[key]();
+            delete currentListeners[key];
         }
 
-        await remove(ref(db, `calls/${firebaseUser.uid}/${activeCall.id}`));
-        await remove(ref(db, `calls/${activeCall.partner.uid}/${activeCall.id}`));
+        const myUid = firebaseUser?.uid;
+        if (myUid) remove(ref(db, `calls/${myUid}/${callId}`));
+        if (partnerUid) remove(ref(db, `calls/${partnerUid}/${callId}`));
+        remove(ref(db, `iceCandidates/${callId}`));
+      }
+
+      // Clean up local WebRTC state
+      if (peerConnection.current) {
+          peerConnection.current.close();
+          peerConnection.current = null;
+      }
+      if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          setLocalStream(null);
+      }
+      setRemoteStream(null);
+      setActiveCall(null);
+      setIncomingCall(null);
+      setIsMuted(false);
+      setIsVideoEnabled(true);
+      const ringtone = document.getElementById('ringtone') as HTMLAudioElement;
+      if (ringtone) {
+        ringtone.pause();
+        ringtone.currentTime = 0;
+      }
+  }, [localStream, firebaseUser]);
+
+
+  const endCall = useCallback(async () => {
+    if (!activeCall) return;
+    const { id, partner } = activeCall;
+
+    const historyRef = ref(db, `callHistory/${firebaseUser!.uid}/${id}`);
+    const partnerHistoryRef = ref(db, `callHistory/${partner.uid}/${id}`);
+
+    try {
+        await update(historyRef, { status: 'ended' });
+        await update(partnerHistoryRef, { status: 'ended' });
+    } catch (e) {
+        console.error("Error updating call history:", e);
     }
-    cleanupCall();
-}, [activeCall, firebaseUser?.uid, cleanupCall]);
+    await cleanupCall(id, partner.uid);
+}, [activeCall, firebaseUser, cleanupCall]);
 
 
-  const startCall = useCallback(async (partner: UserProfile, type: 'video' | 'voice') => {
-    if (!firebaseUser || !profile) return;
-    
-    const pc = new RTCPeerConnection(servers);
-    setPeerConnection(pc);
+ const startCall = useCallback(async (partner: UserProfile, type: 'video' | 'voice') => {
+    if (!firebaseUser || !profile || activeCall) return;
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: type === 'video',
-      audio: true,
-    });
-    setLocalStream(stream);
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    try {
+        const pc = new RTCPeerConnection(servers);
+        peerConnection.current = pc;
 
-    const remote = new MediaStream();
-    setRemoteStream(remote);
-    pc.ontrack = event => event.streams[0].getTracks().forEach(track => remote.addTrack(track));
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: type === 'video',
+            audio: true,
+        });
+        setLocalStream(stream);
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-    const callRef = push(ref(db, `calls/${partner.uid}`));
-    const callId = callRef.key!;
+        const remote = new MediaStream();
+        setRemoteStream(remote);
+        pc.ontrack = event => event.streams[0].getTracks().forEach(track => remote.addTrack(track));
 
-    pc.onicecandidate = event => {
-      if (event.candidate) {
-        push(ref(db, `iceCandidates/${callId}/caller`), event.candidate.toJSON());
-      }
-    };
-    
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+        const callRef = ref(db, `calls/${partner.uid}`);
+        const newCallRef = push(callRef);
+        const callId = newCallRef.key!;
+        
+        setActiveCall({ partner, type, id: callId, status: 'ringing' });
 
-    const callData: Omit<Call, 'answer'> = {
-      id: callId,
-      type,
-      from: firebaseUser.uid,
-      fromName: profile.name,
-      offer,
-      createdAt: Date.now(),
-    };
-    await set(callRef, callData);
-    
-    const historyItem: CallHistoryItem = {
-        id: callId,
-        with: {uid: partner.uid, name: partner.name, username: partner.username},
-        type,
-        direction: 'outgoing',
-        status: 'outgoing',
-        timestamp: Date.now(),
-    };
-    await set(ref(db, `callHistory/${firebaseUser.uid}/${callId}`), historyItem);
-    await set(ref(db, `callHistory/${partner.uid}/${callId}`), {...historyItem, direction: 'incoming'});
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                push(ref(db, `iceCandidates/${callId}/caller`), event.candidate.toJSON());
+            }
+        };
 
-    setActiveCall({ partner, type, id: callId, status: 'connecting' });
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
 
-    // Listen for answer
-    onValue(ref(db, `calls/${partner.uid}/${callId}`), async (snapshot) => {
-      const data = snapshot.val();
-      if (data?.answer && pc.signalingState !== 'stable') {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        setActiveCall(prev => prev ? {...prev, status: 'connected'} : null);
-      }
-      if (!data) { // Call was rejected or ended
-          endCall();
-      }
-    });
+        const callData: Omit<Call, 'answer'> = {
+            id: callId,
+            type,
+            from: firebaseUser.uid,
+            fromName: profile.name,
+            offer,
+            createdAt: Date.now(),
+        };
+        await set(newCallRef, callData);
 
-    onValue(ref(db, `iceCandidates/${callId}/callee`), (snapshot) => {
-      snapshot.forEach(childSnapshot => {
-        if(pc.signalingState !== 'closed') pc.addIceCandidate(new RTCIceCandidate(childSnapshot.val()));
-      });
-    });
+        const historyItem: Omit<CallHistoryItem, 'status'> = {
+            id: callId,
+            with: { uid: partner.uid, name: partner.name, username: partner.username, photoURL: partner.photoURL },
+            type,
+            direction: 'outgoing',
+            timestamp: Date.now(),
+        };
+        await set(ref(db, `callHistory/${firebaseUser.uid}/${callId}`), { ...historyItem, status: 'calling' });
+        await set(ref(db, `callHistory/${partner.uid}/${callId}`), { ...historyItem, direction: 'incoming', status: 'missed' });
 
-  }, [firebaseUser, profile, endCall]);
+
+        const answerRef = ref(db, `calls/${firebaseUser.uid}/${callId}/answer`);
+        const answerListener = onValue(answerRef, async (snapshot) => {
+            const answer = snapshot.val();
+            if (answer && pc.signalingState !== 'stable') {
+                await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+                await update(ref(db, `callHistory/${firebaseUser.uid}/${callId}`), { status: 'answered' });
+                await update(ref(db, `callHistory/${partner.uid}/${callId}`), { status: 'answered' });
+            }
+        });
+
+        const calleeCandidatesRef = ref(db, `iceCandidates/${callId}/callee`);
+        const calleeCandidatesListener = onValue(calleeCandidatesRef, (snapshot) => {
+            snapshot.forEach(childSnapshot => {
+                if (pc.signalingState !== 'closed') pc.addIceCandidate(new RTCIceCandidate(childSnapshot.val()));
+            });
+        });
+        
+        const partnerCallRef = ref(db, `calls/${partner.uid}/${callId}`);
+        const partnerCallListener = onValue(partnerCallRef, (snapshot) => {
+            if (!snapshot.exists()) {
+                toast({ variant: 'destructive', title: "Call Ended", description: "The other user ended the call." });
+                cleanupCall(callId, partner.uid);
+            }
+        });
+
+        callListeners.current = {
+            answerListener: () => off(answerRef, 'value', answerListener),
+            calleeCandidatesListener: () => off(calleeCandidatesRef, 'value', calleeCandidatesListener),
+            partnerCallListener: () => off(partnerCallRef, 'value', partnerCallListener),
+        }
+
+    } catch (error) {
+        console.error("Failed to start call:", error);
+        toast({ variant: 'destructive', title: "Call Failed", description: "Could not start the call. Check permissions and network." });
+        cleanupCall(activeCall?.id, partner.uid);
+    }
+}, [firebaseUser, profile, activeCall, toast, cleanupCall]);
+
 
   const acceptCall = useCallback(async () => {
-    if (!incomingCall || !firebaseUser || !profile) return;
-    
-    const pc = new RTCPeerConnection(servers);
-    setPeerConnection(pc);
+    if (!incomingCall || !firebaseUser || !profile || activeCall) return;
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: incomingCall.type === 'video',
-      audio: true,
-    });
-    setLocalStream(stream);
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    try {
+        const { id, type, from, offer } = incomingCall;
 
-    const remote = new MediaStream();
-    setRemoteStream(remote);
-    pc.ontrack = event => event.streams[0].getTracks().forEach(track => remote.addTrack(track));
+        const pc = new RTCPeerConnection(servers);
+        peerConnection.current = pc;
 
-    pc.onicecandidate = event => {
-      if (event.candidate) {
-        push(ref(db, `iceCandidates/${incomingCall.id}/callee`), event.candidate.toJSON());
-      }
-    };
-
-    await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    await set(ref(db, `calls/${firebaseUser.uid}/${incomingCall.id}/answer`), answer);
-    
-    onValue(ref(db, `iceCandidates/${incomingCall.id}/caller`), (snapshot) => {
-        snapshot.forEach(childSnapshot => {
-          if(pc.signalingState !== 'closed') pc.addIceCandidate(new RTCIceCandidate(childSnapshot.val()));
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: type === 'video',
+            audio: true,
         });
-    });
-    
-    const partnerProfile = allUsers?.[incomingCall.from];
-    if (partnerProfile) {
-      setActiveCall({ partner: partnerProfile, type: incomingCall.type, id: incomingCall.id, status: 'connected' });
+        setLocalStream(stream);
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+        const remote = new MediaStream();
+        setRemoteStream(remote);
+        pc.ontrack = event => event.streams[0].getTracks().forEach(track => remote.addTrack(track));
+
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                push(ref(db, `iceCandidates/${id}/callee`), event.candidate.toJSON());
+            }
+        };
+
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        await set(ref(db, `calls/${from}/${id}/answer`), answer);
+        await remove(ref(db, `calls/${firebaseUser.uid}/${id}`));
+
+        const callerCandidatesRef = ref(db, `iceCandidates/${id}/caller`);
+        const callerCandidatesListener = onValue(callerCandidatesRef, (snapshot) => {
+            snapshot.forEach(childSnapshot => {
+                if (pc.signalingState !== 'closed') pc.addIceCandidate(new RTCIceCandidate(childSnapshot.val()));
+            });
+        });
+        
+        const partnerCallRef = ref(db, `calls/${from}/${id}`);
+        const partnerCallListener = onValue(partnerCallRef, (snapshot) => {
+            if (!snapshot.exists()) {
+                toast({ variant: 'destructive', title: "Call Ended", description: "The other user ended the call." });
+                cleanupCall(id, from);
+            }
+        });
+
+        callListeners.current = {
+            callerCandidatesListener: () => off(callerCandidatesRef, 'value', callerCandidatesListener),
+            partnerCallListener: () => off(partnerCallRef, 'value', partnerCallListener),
+        }
+
+        const partnerProfile = allUsers?.[from];
+        if (partnerProfile) {
+            setActiveCall({ partner: partnerProfile, type, id, status: 'connected' });
+        }
+
+        setIncomingCall(null);
+        showModal(null);
+    } catch (error) {
+        console.error("Failed to accept call:", error);
+        toast({ variant: 'destructive', title: "Call Failed", description: "Could not accept the call." });
+        if(incomingCall) cleanupCall(incomingCall.id, incomingCall.from);
     }
-    
-    setIncomingCall(null);
-    showModal(null);
-  }, [incomingCall, firebaseUser, allUsers, profile]);
+  }, [incomingCall, firebaseUser, allUsers, profile, activeCall, toast, cleanupCall]);
 
   const rejectCall = useCallback(async () => {
     if (!incomingCall || !firebaseUser) return;
     const { id, from } = incomingCall;
-    await remove(ref(db, `calls/${firebaseUser.uid}/${id}`));
-    await set(ref(db, `callHistory/${from}/${id}/status`), 'declined');
-    await set(ref(db, `callHistory/${firebaseUser.uid}/${id}/status`), 'declined');
+    
+    await update(ref(db, `callHistory/${from}/${id}`), { status: 'declined' });
+    await update(ref(db, `callHistory/${firebaseUser.uid}/${id}`), { status: 'declined' });
 
-    setIncomingCall(null);
-    showModal(null);
-  }, [incomingCall, firebaseUser]);
+    cleanupCall(id, from);
+  }, [incomingCall, firebaseUser, cleanupCall]);
 
 
   const toggleMute = () => {
@@ -291,7 +348,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         await update(userStatusRef, { onlineStatus: 'offline', lastSeen: Date.now() });
     }
     await auth.signOut();
-    cleanupCall();
+    cleanupCall(activeCall?.id, activeCall?.partner.uid);
     setFirebaseUser(null);
     setProfile(null);
     setAllUsers(null);
@@ -299,7 +356,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setChatPartner(null);
     setGroupChat(null);
     setActiveModal(null);
-  }, [cleanupCall, firebaseUser]);
+  }, [cleanupCall, firebaseUser, activeCall]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -317,29 +374,32 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!firebaseUser) return;
     
-    // Set up presence management
-    const userStatusRef = ref(db, `users/${firebaseUser.uid}`);
-    const connectedRef = ref(db, '.info/connected');
+    let presenceRef: any;
+    let connectedListener: any;
     
-    const listener = onValue(connectedRef, (snap) => {
-      if (snap.val() === true && profile) {
-        const con = onDisconnect(userStatusRef);
-        con.update({ onlineStatus: 'offline', lastSeen: Date.now() });
-        set(userStatusRef, { ...profile, onlineStatus: 'online' });
-      }
-    });
+    if (profile?.username) {
+        presenceRef = ref(db, `users/${firebaseUser.uid}`);
+        connectedListener = onValue(ref(db, '.info/connected'), (snap) => {
+          if (snap.val() === true) {
+            update(presenceRef, { onlineStatus: 'online' });
+            onDisconnect(presenceRef).update({ onlineStatus: 'offline', lastSeen: serverTimestamp() });
+          }
+        });
+    }
 
     const usersRef = ref(db, 'users');
     const usersListener = onValue(usersRef, (snapshot) => setAllUsers(snapshot.val() || {}));
     
     return () => {
         off(usersRef, 'value', usersListener);
-        off(connectedRef, 'value', listener)
+        if (connectedListener && presenceRef) {
+          off(ref(db, '.info/connected'), 'value', connectedListener);
+        }
     };
-  }, [firebaseUser, profile]);
+  }, [firebaseUser, profile?.username]);
 
   useEffect(() => {
-    let profileUnsubscribe: () => void;
+    let profileUnsubscribe: (() => void) | undefined;
     if (firebaseUser) {
       setIsLoading(true);
       const profileRef = ref(db, `users/${firebaseUser.uid}`);
@@ -360,8 +420,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(false);
     }
     return () => {
-      if (profileUnsubscribe && firebaseUser?.uid) {
-        off(ref(db, `users/${firebaseUser.uid}`), 'value', profileUnsubscribe);
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
       }
     };
   }, [firebaseUser]);

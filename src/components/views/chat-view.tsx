@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Phone, Send, Video, Users, Check, CheckCheck } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { ref, onValue, off, push, serverTimestamp, set, update, remove } from 'firebase/database';
+import { ref, onValue, off, push, serverTimestamp, set, update, remove, runTransaction } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -79,25 +79,30 @@ export function ChatView() {
 
   // Update message status to 'read' when chat is opened
   useEffect(() => {
-    if (!chatId || !firebaseUser || isGroupChat) return;
+    if (!chatId || !firebaseUser) return;
 
     const messagesRef = ref(db, `messages/${chatId}`);
-    onValue(messagesRef, (snapshot) => {
-        const messagesData = snapshot.val();
-        if (messagesData) {
-            const updates: Record<string, any> = {};
-            Object.keys(messagesData).forEach(key => {
-                const msg = messagesData[key];
-                if (msg.from !== firebaseUser.uid && msg.status !== 'read') {
-                    updates[`/${key}/status`] = 'read';
-                }
-            });
-            if (Object.keys(updates).length > 0) {
-                update(messagesRef, updates);
-            }
+    
+    // Set my own messages status to read by partner
+    const listener = onValue(messagesRef, (snapshot) => {
+      const messagesData = snapshot.val();
+      if (messagesData) {
+        const updates: Record<string, any> = {};
+        Object.keys(messagesData).forEach(key => {
+          const msg = messagesData[key];
+          if (msg.from !== firebaseUser.uid && msg.status !== 'read') {
+            updates[`/${key}/status`] = 'read';
+          }
+        });
+        if (Object.keys(updates).length > 0) {
+          update(messagesRef, updates);
         }
-    }, { onlyOnce: true });
-  }, [chatId, firebaseUser, isGroupChat]);
+      }
+    });
+
+    return () => off(messagesRef, 'value', listener);
+
+  }, [chatId, firebaseUser]);
 
   useEffect(() => {
     if (!chatId) return;
@@ -111,11 +116,14 @@ export function ChatView() {
       loadedMessages.sort((a, b) => a.ts - b.ts);
       setMessages(loadedMessages);
       
-      // Update incoming messages to 'delivered'
+      // Update incoming messages to 'delivered' if I am the recipient
       if (firebaseUser) {
         const updates: Record<string, any> = {};
         loadedMessages.forEach(msg => {
-          if (msg.from !== firebaseUser.uid && msg.status === 'sent') {
+          const isMyMessage = msg.from === firebaseUser.uid;
+          const isToMe = !isGroupChat && msg.to === firebaseUser.uid;
+          
+          if (!isMyMessage && (isToMe || isGroupChat) && msg.status === 'sent') {
             updates[`/${msg.id}/status`] = 'delivered';
           }
         });
@@ -176,7 +184,7 @@ export function ChatView() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !chatId || !firebaseUser || !chatTarget) return;
+    if (!newMessage.trim() || !chatId || !firebaseUser || !chatTarget || !profile) return;
 
     // Stop typing indicator on send
     sendTypingStatus(false);
@@ -187,7 +195,7 @@ export function ChatView() {
 
     const message: Omit<Message, 'id'> = {
       from: firebaseUser.uid,
-      fromName: profile?.name || 'Unknown User', // Add sender name
+      fromName: profile.name,
       to: isGroupChat ? groupChat.id : chatPartner!.uid,
       text: newMessage.trim(),
       ts: serverTimestamp() as any,
@@ -196,12 +204,9 @@ export function ChatView() {
 
     await set(newMessageRef, message);
 
-    if (!isGroupChat) {
-        const unreadRef = ref(db, `unread/${chatPartner!.uid}/${firebaseUser.uid}`);
-        onValue(unreadRef, (snapshot) => {
-            const currentCount = snapshot.val() || 0;
-            set(unreadRef, currentCount + 1);
-        }, { onlyOnce: true });
+    if (!isGroupChat && chatPartner) {
+        const unreadRef = ref(db, `unread/${chatPartner.uid}/${firebaseUser.uid}`);
+        runTransaction(unreadRef, (currentCount) => (currentCount || 0) + 1);
     }
 
     setNewMessage('');
@@ -212,8 +217,8 @@ export function ChatView() {
       if (msg.from !== firebaseUser?.uid) return null;
 
       if (isGroupChat) {
-        // Don't show ticks for group chats for now to keep it simple
-        return null;
+        // Group chat ticks are complex (read by who), so we'll just show sent for now.
+        return <Check className="w-4 h-4 text-muted-foreground" />;
       }
 
       if (msg.status === 'read') {
@@ -222,9 +227,7 @@ export function ChatView() {
       if (msg.status === 'delivered') {
           return <CheckCheck className="w-4 h-4 text-muted-foreground" />;
       }
-      if (msg.status === 'sent') {
-          return <Check className="w-4 h-4 text-muted-foreground" />;
-      }
+      // 'sent' or any other status
       return <Check className="w-4 h-4 text-muted-foreground" />;
   }
   

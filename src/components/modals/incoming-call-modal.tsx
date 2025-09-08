@@ -5,9 +5,10 @@ import { useApp } from '@/context/app-provider';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Phone, Video, PhoneIncoming, PhoneOff } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 export default function IncomingCallModal() {
-  const { incomingCall, acceptCall, rejectCall, showModal } = useApp();
+  const { incomingCall, acceptCall, rejectCall, allUsers } = useApp();
 
   if (!incomingCall) return null;
 
@@ -25,11 +26,16 @@ export default function IncomingCallModal() {
     }
   }
 
+  const callerProfile = allUsers ? allUsers[incomingCall.from] : null;
+
   return (
     <Dialog open={!!incomingCall} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent showCloseButton={false}>
         <DialogHeader className="items-center text-center">
-          <PhoneIncoming className="w-12 h-12 text-primary mb-2" />
+          <Avatar className="w-24 h-24 mb-4">
+             <AvatarImage src={callerProfile?.photoURL ?? undefined} alt={callerProfile?.name} />
+            <AvatarFallback className="text-4xl">{incomingCall.fromName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
           <DialogTitle className="text-2xl">Incoming Call</DialogTitle>
           <DialogDescription>
             You have an incoming {incomingCall.type} call from...

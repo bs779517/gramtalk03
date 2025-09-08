@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2, Search, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { onValue, ref, off, query, orderByChild, equalTo, remove, set, update, get, startAt, endAt } from 'firebase/database';
+import { onValue, ref, off, query, orderByChild, equalTo, remove, set, update, get, startAt, endAt, runTransaction } from 'firebase/database';
 import type { UserProfile, FriendRequest, CallHistoryItem, Group } from '@/lib/types';
 import { FriendSuggestions } from '@/components/friend-suggestions';
 import { formatDistanceToNow } from 'date-fns';
@@ -89,14 +89,11 @@ export function MainView() {
     });
 
     // Listen for friend requests
-    const requestsRef = ref(db, 'requests');
-    const requestsQuery = query(requestsRef, orderByChild('to'), equalTo(firebaseUser.uid));
-    const requestsListener = onValue(requestsRef, (snapshot) => {
-      const allRequests = snapshot.val() || {};
-      const userRequests = Object.keys(allRequests)
-        .filter(key => allRequests[key].to === firebaseUser.uid)
-        .map(key => ({ id: key, ...allRequests[key] }));
-      setFriendRequests(userRequests);
+    const requestsQuery = query(ref(db, 'requests'), orderByChild('to'), equalTo(firebaseUser.uid));
+    const requestsListener = onValue(requestsQuery, (snapshot) => {
+        const requestsData = snapshot.val();
+        const loadedRequests = requestsData ? Object.keys(requestsData).map(key => ({ id: key, ...requestsData[key] })) : [];
+        setFriendRequests(loadedRequests);
     });
 
     // Listen for unread messages
@@ -115,7 +112,7 @@ export function MainView() {
 
     return () => {
       off(contactsRef, 'value', contactsListener);
-      off(requestsRef, 'value', requestsListener);
+      off(requestsQuery, 'value', requestsListener);
       off(unreadRef, 'value', unreadListener);
       off(callHistoryRef, 'value', callHistoryListener);
     };
@@ -125,11 +122,11 @@ export function MainView() {
 
   const handleAcceptRequest = async (request: FriendRequest) => {
     if (!firebaseUser) return;
-    await Promise.all([
-      set(ref(db, `users/${firebaseUser.uid}/contacts/${request.from}`), true),
-      set(ref(db, `users/${request.from}/contacts/${firebaseUser.uid}`), true),
-      remove(ref(db, `requests/${request.id}`))
-    ]);
+    const updates: Record<string, any> = {};
+    updates[`/users/${firebaseUser.uid}/contacts/${request.from}`] = true;
+    updates[`/users/${request.from}/contacts/${firebaseUser.uid}`] = true;
+    updates[`/requests/${request.id}`] = null;
+    await update(ref(db), updates);
   };
 
   const handleRejectRequest = async (request: FriendRequest) => {
@@ -140,7 +137,8 @@ export function MainView() {
     setChatPartner(partner);
     setActiveView('chat');
     if (firebaseUser?.uid) {
-      remove(ref(db, `unread/${firebaseUser.uid}/${partner.uid}`));
+      const unreadRef = ref(db, `unread/${firebaseUser.uid}/${partner.uid}`);
+      remove(unreadRef);
     }
   };
 
@@ -182,7 +180,7 @@ export function MainView() {
     
     try {
       const updates: Record<string, any> = {};
-      updates[`/groups/${group.id}/members/${firebaseUser.uid}`] = true;
+      updates[`/groups/${group.id}/members/${firebaseUser.uid}`] = 'member';
       updates[`/users/${firebaseUser.uid}/groups/${group.id}`] = true;
       
       await update(ref(db), updates);
@@ -344,7 +342,7 @@ export function MainView() {
               callHistory.map(call => (
                 <div key={call.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
                   <Avatar>
-                    <AvatarImage src={call.with.photoURL ?? undefined} alt={call.with.name} />
+                    <AvatarImage src={(allUsers?.[call.with.uid] as any)?.photoURL ?? undefined} alt={call.with.name} />
                     <AvatarFallback>{call.with.name ? call.with.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3 flex-grow">
@@ -355,8 +353,8 @@ export function MainView() {
                      <p className="text-xs text-muted-foreground">{isClient ? formatDistanceToNow(call.timestamp, { addSuffix: true }) : '...'}</p>
                   </div>
                    <div className="flex gap-2">
-                     <Button size="icon" variant="ghost" onClick={() => call.with && startCall(call.with as UserProfile, 'voice')}><Phone/></Button>
-                     <Button size="icon" variant="ghost" onClick={() => call.with && startCall(call.with as UserProfile, 'video')}><Video/></Button>
+                     <Button size="icon" variant="ghost" onClick={() => call.with.uid && allUsers?.[call.with.uid] && startCall(allUsers[call.with.uid], 'voice')}><Phone/></Button>
+                     <Button size="icon" variant="ghost" onClick={() => call.with.uid && allUsers?.[call.with.uid] && startCall(allUsers[call.with.uid], 'video')}><Video/></Button>
                    </div>
                 </div>
               ))
