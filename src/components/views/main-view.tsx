@@ -77,10 +77,14 @@ export function MainView() {
     const contactsRef = ref(db, `users/${firebaseUser.uid}/contacts`);
     const contactsListener = onValue(contactsRef, async (snapshot) => {
       const contactIds = snapshot.val() ? Object.keys(snapshot.val()) : [];
+      if (contactIds.length === 0) {
+        setContacts([]); // Clear contacts if there are none
+        return;
+      }
       const contactsPromises = contactIds.map(id => 
         new Promise<UserProfile | null>((resolve) => {
           onValue(ref(db, `users/${id}`), (userSnap) => {
-            resolve(userSnap.val());
+            resolve(userSnap.val() ? { uid: id, ...userSnap.val() } : null);
           }, { onlyOnce: true });
         })
       );
