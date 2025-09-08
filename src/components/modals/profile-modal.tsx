@@ -87,17 +87,23 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   
   useEffect(() => {
     if (!open) {
-      setNewPhoto(null);
       setIsEditingName(false);
       setIsEditingBio(false);
-      if(profile) {
-        setName(profile.name);
-        setBio(profile.bio || '');
-      }
-      // Reset the viewed profile when modal closes
-      setTimeout(() => setProfileToView(null), 200);
+      setNewPhoto(null);
+      
+      // Reset the viewed profile when modal closes to avoid stale data
+      const timer = setTimeout(() => {
+        setProfileToView(null);
+        if(myProfile) {
+          setName(myProfile.name);
+          setBio(myProfile.bio || '');
+        }
+      }, 300); // Delay to allow modal to close gracefully
+      
+      return () => clearTimeout(timer);
     }
-  }, [open, profile, setProfileToView]);
+  }, [open, myProfile, setProfileToView]);
+
 
   const handleSaveChanges = async () => {
     if (!firebaseUser || !isMyProfile) return;
@@ -157,9 +163,9 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   };
 
   const handleBlock = async () => {
-      if (!firebaseUser || isMyProfile) return;
+      if (!firebaseUser || isMyProfile || !profile) return;
       try {
-        await update(ref(db, `users/${firebaseUser.uid}/blocked`), { [profile!.uid]: true });
+        await update(ref(db, `users/${firebaseUser.uid}/blocked`), { [profile.uid]: true });
         toast({ title: 'User Blocked' });
         onOpenChange(false);
       } catch (error) {
@@ -175,7 +181,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     }
   }
   
-  const isBlocked = myProfile?.blocked && profile && myProfile.blocked[profile.uid];
+  const isBlockedByMe = myProfile?.blocked && profile && myProfile.blocked[profile.uid];
 
   if (!profile || !myProfile) return null;
 
@@ -209,7 +215,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
               <p className="text-sm text-muted-foreground text-center">@{profile.username}</p>
               {isMyProfile && <p className="text-sm text-muted-foreground text-center mt-1">{profile.email}</p>}
             </div>
-             {isBlocked && <Badge variant="destructive">Blocked</Badge>}
+             {isBlockedByMe && <Badge variant="destructive">Blocked</Badge>}
           </div>
 
           {!isMyProfile && !myProfile.contacts?.[profile.uid] && (
@@ -315,8 +321,8 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
           </DialogFooter>
         ) : (
              <DialogFooter>
-                <Button variant="destructive" className="w-full" onClick={isBlocked ? () => handleUnblock(profile.uid) : handleBlock}>
-                  <ShieldOff/> {isBlocked ? 'Unblock' : 'Block'} {profile.name}
+                <Button variant="destructive" className="w-full" onClick={isBlockedByMe ? () => handleUnblock(profile.uid) : handleBlock}>
+                  <ShieldOff/> {isBlockedByMe ? 'Unblock' : 'Block'} {profile.name}
                 </Button>
              </DialogFooter>
         )}
@@ -324,4 +330,6 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     </Dialog>
   );
 }
+    
+
     

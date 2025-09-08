@@ -198,6 +198,7 @@ export function MainView() {
   }
   
   const handleOpenProfile = (user: UserProfile | null) => {
+    if (!user) return;
     setProfileToView(user);
     showModal('profileView');
   }
@@ -414,4 +415,6 @@ export function MainView() {
     </div>
   );
 }
+    
+
     
