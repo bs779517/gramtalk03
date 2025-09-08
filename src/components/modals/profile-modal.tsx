@@ -86,9 +86,8 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     return () => listeners.forEach(unsub => unsub());
   }, [firebaseUser, myProfile?.blocked, isMyProfile]);
   
-  useEffect(() => {
-    // This effect handles cleanup when the modal closes.
-    if (!open) {
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) {
       // Small delay to allow closing animation to finish before resetting state
       const timer = setTimeout(() => {
         setIsEditingName(false);
@@ -98,9 +97,11 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
         setProfileToView(null);
       }, 300);
       
+      onOpenChange(false);
       return () => clearTimeout(timer);
     }
-  }, [open, setProfileToView]);
+    onOpenChange(true);
+  }
 
 
   const handleSaveChanges = async () => {
@@ -184,7 +185,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   if (!profile || !myProfile) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{isMyProfile ? 'Your Profile' : 'Profile'}</DialogTitle>
@@ -333,3 +334,4 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     
 
     
+
