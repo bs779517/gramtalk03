@@ -29,12 +29,6 @@ export interface Message {
   to: string; // Can be a user UID or a group ID
   text: string;
   ts: number;
-  status?: 'sent' | 'delivered' | 'read';
-  replyTo?: {
-    messageId: string;
-    messageText: string;
-    messageFrom: string;
-  };
 }
 
 export interface FriendRequest {

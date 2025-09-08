@@ -333,5 +333,3 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     
 
     
-
-

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2, Search, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { onValue, ref, off, query, orderByChild, equalTo, remove, set, update, get, startAt, endAt, runTransaction } from 'firebase/database';
+import { onValue, ref, off, query, orderByChild, equalTo, remove, set, update, get, startAt, endAt } from 'firebase/database';
 import type { UserProfile, FriendRequest, CallHistoryItem, Group } from '@/lib/types';
 import { FriendSuggestions } from '@/components/friend-suggestions';
 import { formatDistanceToNow } from 'date-fns';
@@ -18,7 +18,7 @@ import CreateGroupModal from '../modals/create-group-modal';
 import { useToast } from '@/hooks/use-toast';
 
 export function MainView() {
-  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat, allUsers, setProfileToView } = useApp();
+  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat, allUsers, setProfileToView } from useApp();
   const [activeTab, setActiveTab] = useState('chats');
   const [contacts, setContacts] = useState<UserProfile[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -77,10 +77,6 @@ export function MainView() {
     const contactsRef = ref(db, `users/${firebaseUser.uid}/contacts`);
     const contactsListener = onValue(contactsRef, async (snapshot) => {
       const contactIds = snapshot.val() ? Object.keys(snapshot.val()) : [];
-      if (contactIds.length === 0) {
-        setContacts([]); // Clear contacts if there are none
-        return;
-      }
       const contactsPromises = contactIds.map(id => 
         new Promise<UserProfile | null>((resolve) => {
           onValue(ref(db, `users/${id}`), (userSnap) => {
@@ -140,10 +136,6 @@ export function MainView() {
   const openChat = (partner: UserProfile) => {
     setChatPartner(partner);
     setActiveView('chat');
-    if (firebaseUser?.uid) {
-      const unreadRef = ref(db, `unread/${firebaseUser.uid}/${partner.uid}`);
-      remove(unreadRef);
-    }
   };
 
   const openGroupChat = (group: Group) => {
@@ -201,9 +193,8 @@ export function MainView() {
     }
   }
   
-  const handleOpenProfile = (user: UserProfile | null) => {
-    if (!user) return;
-    setProfileToView(user);
+  const handleOpenProfile = () => {
+    setProfileToView(profile);
     showModal('profileView');
   }
 
@@ -237,7 +228,7 @@ export function MainView() {
                 const user = allUsers && contact ? allUsers[contact.uid] : contact;
                 return (
                 <div key={contact.uid} className="flex items-center p-2 rounded-lg hover:bg-secondary cursor-pointer" onClick={() => openChat(contact)}>
-                  <div className="relative" onClick={(e) => {e.stopPropagation(); handleOpenProfile(contact);}}>
+                  <div className="relative">
                     <Avatar>
                       <AvatarImage src={contact.photoURL ?? undefined} alt={contact.name} />
                       <AvatarFallback>{contact.name ? contact.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
@@ -329,7 +320,7 @@ export function MainView() {
                   <h3 className="font-semibold px-2 mb-2">Friend Requests</h3>
                   {friendRequests.map(req => (
                     <div key={req.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
-                      <Avatar className="cursor-pointer" onClick={() => allUsers && handleOpenProfile(allUsers[req.from])}><AvatarFallback>{req.fromName ? req.fromName.charAt(0) : '?'}</AvatarFallback></Avatar>
+                      <Avatar><AvatarFallback>{req.fromName ? req.fromName.charAt(0) : '?'}</AvatarFallback></Avatar>
                       <div className="ml-3 flex-grow">
                         <p className="font-semibold">{req.fromName}</p>
                         <p className="text-xs text-muted-foreground">@{req.fromUsername}</p>
@@ -351,8 +342,8 @@ export function MainView() {
              {callHistory.length > 0 ? (
               callHistory.map(call => (
                 <div key={call.id} className="flex items-center p-2 rounded-lg hover:bg-secondary">
-                  <Avatar className="cursor-pointer" onClick={() => call.with.uid && allUsers?.[call.with.uid] && handleOpenProfile(allUsers[call.with.uid])}>
-                    <AvatarImage src={(allUsers?.[call.with.uid] as any)?.photoURL ?? undefined} alt={call.with.name} />
+                  <Avatar>
+                    <AvatarImage src={(allUsers?.[call.with.uid!] as any)?.photoURL ?? undefined} alt={call.with.name} />
                     <AvatarFallback>{call.with.name ? call.with.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3 flex-grow">
@@ -386,7 +377,7 @@ export function MainView() {
           <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('addFriend')}>
             <UserPlus />
           </Button>
-          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => handleOpenProfile(profile)}>
+          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={handleOpenProfile}>
             <Avatar className="w-8 h-8">
               <AvatarImage src={profile?.photoURL ?? undefined} alt={profile?.name} />
               <AvatarFallback className="bg-primary-foreground text-primary text-xs font-bold">
