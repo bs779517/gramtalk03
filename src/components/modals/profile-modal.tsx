@@ -29,7 +29,7 @@ interface ProfileModalProps {
 export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const { firebaseUser, profile: myProfile, logout, updateProfile, profileToView, setProfileToView, showModal, setChatPartner, setActiveView, startCall } = useApp();
   
-  const isMyProfile = !profileToView || profileToView.uid === firebaseUser?.uid;
+  const isMyProfile = !profileToView || profileToView.uid === myProfile?.uid;
   const profile = isMyProfile ? myProfile : profileToView;
 
   // State for various profile fields
@@ -333,3 +333,4 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     
 
     
+
