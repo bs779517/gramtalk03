@@ -11,7 +11,7 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, off, push, serverTimestamp, set, update, remove, runTransaction } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -397,5 +397,3 @@ export function ChatView() {
     </div>
   );
 }
-
-    
