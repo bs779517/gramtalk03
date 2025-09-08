@@ -16,13 +16,20 @@ import { format, formatDistanceToNow } from 'date-fns';
 // Debounce function
 const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
-
+  
   const debounced = (...args: Parameters<F>) => {
     if (timeout !== null) {
       clearTimeout(timeout);
       timeout = null;
     }
     timeout = setTimeout(() => func(...args), waitFor);
+  };
+
+  debounced.cancel = () => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
   };
 
   return debounced;
@@ -36,6 +43,7 @@ export function ChatView() {
   const [status, setStatus] = useState('');
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const isGroupChat = !!groupChat;
   const chatTarget = groupChat || chatPartner;
@@ -197,6 +205,7 @@ export function ChatView() {
     }
 
     setNewMessage('');
+    inputRef.current?.focus();
   };
 
   const renderTicks = (msg: Message) => {
@@ -295,6 +304,7 @@ export function ChatView() {
       <footer className="p-2 border-t bg-secondary">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Input
+            ref={inputRef}
             value={newMessage}
             onChange={handleInputChange}
             placeholder="Type a message..."
@@ -309,5 +319,3 @@ export function ChatView() {
     </div>
   );
 }
-
-    
