@@ -52,6 +52,9 @@ interface AppContextType {
   rejectCall: () => void;
   endCall: () => void;
 
+  profileToView: UserProfile | null;
+  setProfileToView: (profile: UserProfile | null) => void;
+
   logout: () => Promise<void>;
 }
 
@@ -70,6 +73,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [chatPartner, setChatPartnerInternal] = useState<UserProfile | null>(null);
   const [groupChat, setGroupChatInternal] = useState<Group | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
+  const [profileToView, setProfileToView] = useState<UserProfile | null>(null);
 
   // WebRTC State
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
@@ -399,12 +403,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   }, [setActiveView]);
 
   useEffect(() => {
-    if (!firebaseUser) return;
-    
     let presenceRef: any;
     let connectedListener: any;
     
-    if (profile?.username) {
+    if (firebaseUser?.uid && profile?.username) {
         presenceRef = ref(db, `users/${firebaseUser.uid}`);
         connectedListener = onValue(ref(db, '.info/connected'), (snap) => {
           if (snap.val() === true) {
@@ -464,7 +466,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     chatPartner, setChatPartner, groupChat, setGroupChat, incomingCall, setIncomingCall, logout,
     updateProfile,
     activeCall, localStream, remoteStream, isMuted, isVideoEnabled, toggleMute, toggleVideo,
-    startCall, acceptCall, rejectCall, endCall
+    startCall, acceptCall, rejectCall, endCall,
+    profileToView, setProfileToView
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

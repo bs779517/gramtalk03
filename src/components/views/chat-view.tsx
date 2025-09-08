@@ -44,7 +44,7 @@ const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) =
 
 
 export function ChatView() {
-  const { firebaseUser, profile, chatPartner, groupChat, setActiveView, startCall, allUsers } = useApp();
+  const { firebaseUser, profile, chatPartner, groupChat, setActiveView, startCall, allUsers, setProfileToView, showModal } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [status, setStatus] = useState('');
@@ -254,6 +254,13 @@ export function ChatView() {
   const cancelReply = () => {
     setReplyingTo(null);
   };
+  
+  const handleOpenProfile = (user: UserProfile | null) => {
+    if (user) {
+        setProfileToView(user);
+        showModal('profileView');
+    }
+  }
 
 
   const renderTicks = (msg: Message) => {
@@ -288,7 +295,7 @@ export function ChatView() {
         <Button variant="ghost" size="icon" onClick={() => setActiveView('main')}>
           <ArrowLeft />
         </Button>
-        <div className="relative">
+        <div className="relative cursor-pointer" onClick={() => handleOpenProfile(chatPartner)}>
           <Avatar>
             <AvatarImage src={isGroupChat ? groupChat.photoURL ?? undefined : (chatPartner as UserProfile)?.photoURL ?? undefined} />
             <AvatarFallback>{chatTarget.name ? chatTarget.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
@@ -297,7 +304,7 @@ export function ChatView() {
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-secondary" />
             )}
         </div>
-        <div className="flex-grow">
+        <div className="flex-grow cursor-pointer" onClick={() => handleOpenProfile(chatPartner)}>
           <p className="font-semibold">{chatTarget.name || ""}</p>
            <p className={cn("text-xs", isPartnerTyping ? "text-primary font-semibold" : "text-muted-foreground")}>
             {status}
@@ -325,7 +332,13 @@ export function ChatView() {
             const isMe = msg.from === firebaseUser?.uid;
             
             return (
-              <div key={msg.id} className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
+              <div key={msg.id} className={cn('flex items-end gap-2', isMe ? 'justify-end' : 'justify-start')}>
+                {!isMe && isGroupChat && (
+                    <Avatar className="w-6 h-6 cursor-pointer" onClick={() => handleOpenProfile(allUsers ? allUsers[msg.from] : null)}>
+                        <AvatarImage src={allUsers?.[msg.from]?.photoURL ?? undefined} />
+                        <AvatarFallback>{msg.fromName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                )}
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <div className={cn(
