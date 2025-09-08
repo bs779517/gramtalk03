@@ -11,7 +11,9 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, off, push, serverTimestamp, set } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+
 
 export function ChatView() {
   const { firebaseUser, profile, chatPartner, groupChat, setActiveView, startCall, allUsers } = useApp();
@@ -76,7 +78,7 @@ export function ChatView() {
     const messagesRef = ref(db, `messages/${chatId}`);
     const newMessageRef = push(messagesRef);
 
-    const message = {
+    const message: Omit<Message, 'id' | 'ts'> & { ts: object } = {
       from: firebaseUser.uid,
       fromName: profile.name,
       to: isGroupChat ? groupChat.id : chatPartner!.uid,
