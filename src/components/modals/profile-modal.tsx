@@ -48,6 +48,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   const { toast } = useToast();
 
   useEffect(() => {
+    // When the 'profile' object (either myProfile or profileToView) changes, update the local state.
     if (profile) {
       setName(profile.name);
       setBio(profile.bio || '');
@@ -93,16 +94,14 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
       
       // Reset the viewed profile when modal closes to avoid stale data
       const timer = setTimeout(() => {
-        setProfileToView(null);
-        if(myProfile) {
-          setName(myProfile.name);
-          setBio(myProfile.bio || '');
+        if (!isMyProfile) {
+          setProfileToView(null);
         }
       }, 300); // Delay to allow modal to close gracefully
       
       return () => clearTimeout(timer);
     }
-  }, [open, myProfile, setProfileToView]);
+  }, [open, isMyProfile, setProfileToView]);
 
 
   const handleSaveChanges = async () => {
@@ -330,6 +329,8 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     </Dialog>
   );
 }
+    
+
     
 
     
