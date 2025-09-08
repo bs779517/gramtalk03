@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Phone, Send, Video, Users } from 'lucide-react';
+import { ArrowLeft, Phone, Send, Video, Users, Check, CheckCheck } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { ref, onValue, off, push, serverTimestamp, set } from 'firebase/database';
+import { ref, onValue, off, push, serverTimestamp, set, update } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -31,6 +31,28 @@ export function ChatView() {
     return [firebaseUser.uid, chatPartner!.uid].sort().join('_');
   }, [firebaseUser, chatPartner, groupChat, isGroupChat, chatTarget]);
 
+  // Update message status to 'read' when chat is opened
+  useEffect(() => {
+    if (!chatId || !firebaseUser || isGroupChat) return;
+
+    const messagesRef = ref(db, `messages/${chatId}`);
+    onValue(messagesRef, (snapshot) => {
+        const messagesData = snapshot.val();
+        if (messagesData) {
+            const updates: Record<string, any> = {};
+            Object.keys(messagesData).forEach(key => {
+                const msg = messagesData[key];
+                if (msg.from !== firebaseUser.uid && msg.status !== 'read') {
+                    updates[`/${key}/status`] = 'read';
+                }
+            });
+            if (Object.keys(updates).length > 0) {
+                update(messagesRef, updates);
+            }
+        }
+    }, { onlyOnce: true });
+  }, [chatId, firebaseUser, isGroupChat]);
+
   useEffect(() => {
     if (!chatId) return;
 
@@ -42,10 +64,23 @@ export function ChatView() {
         : [];
       loadedMessages.sort((a, b) => a.ts - b.ts);
       setMessages(loadedMessages);
+      
+      // Update incoming messages to 'delivered'
+      if (firebaseUser) {
+        const updates: Record<string, any> = {};
+        loadedMessages.forEach(msg => {
+          if (msg.from !== firebaseUser.uid && msg.status === 'sent') {
+            updates[`/${msg.id}/status`] = 'delivered';
+          }
+        });
+        if (Object.keys(updates).length > 0) {
+          update(messagesRef, updates);
+        }
+      }
     });
 
     return () => off(messagesRef, 'value', listener);
-  }, [chatId]);
+  }, [chatId, firebaseUser]);
   
   useEffect(() => {
     setTimeout(() => {
@@ -84,22 +119,41 @@ export function ChatView() {
       to: isGroupChat ? groupChat.id : chatPartner!.uid,
       text: newMessage.trim(),
       ts: serverTimestamp() as any,
+      status: 'sent',
     };
 
     await set(newMessageRef, message);
 
     if (!isGroupChat) {
-        // Increment unread count for recipient in 1-on-1 chat
         const unreadRef = ref(db, `unread/${chatPartner!.uid}/${firebaseUser.uid}`);
         onValue(unreadRef, (snapshot) => {
             const currentCount = snapshot.val() || 0;
             set(unreadRef, currentCount + 1);
         }, { onlyOnce: true });
     }
-    // TODO: Handle group chat notifications if needed
 
     setNewMessage('');
   };
+
+  const renderTicks = (msg: Message) => {
+      if (msg.from !== firebaseUser?.uid) return null;
+
+      if (isGroupChat) {
+        // Don't show ticks for group chats for now to keep it simple
+        return null;
+      }
+
+      if (msg.status === 'read') {
+          return <CheckCheck className="w-4 h-4 text-blue-500" />;
+      }
+      if (msg.status === 'delivered') {
+          return <CheckCheck className="w-4 h-4 text-muted-foreground" />;
+      }
+      if (msg.status === 'sent') {
+          return <Check className="w-4 h-4 text-muted-foreground" />;
+      }
+      return <Check className="w-4 h-4 text-muted-foreground" />;
+  }
   
   if (!chatTarget) {
     return (
@@ -125,7 +179,7 @@ export function ChatView() {
             )}
         </div>
         <div className="flex-grow">
-          <p className="font-semibold">{chatTarget.name}</p>
+          <p className="font-semibold">{chatTarget.name || ""}</p>
            <p className="text-xs text-muted-foreground">{status}</p>
         </div>
         {isGroupChat ? (
@@ -159,9 +213,12 @@ export function ChatView() {
                   )}>
                     {isGroupChat && !isMe && <p className="text-xs font-semibold text-primary mb-1">{msg.fromName}</p>}
                     <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
-                    <p className="text-xs text-muted-foreground mt-1 text-right float-right ml-4">
-                        {msg.ts ? format(new Date(msg.ts), 'p') : '...'}
-                    </p>
+                    <div className="flex items-center justify-end mt-1 text-right float-right ml-4">
+                      <p className="text-xs text-muted-foreground mr-1">
+                          {msg.ts ? format(new Date(msg.ts), 'p') : '...'}
+                      </p>
+                      {renderTicks(msg)}
+                    </div>
                 </div>
               </div>
             );
