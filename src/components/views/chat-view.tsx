@@ -6,12 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Phone, Send, Video, Users, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Phone, Send, Video, Users, Check, CheckCheck, Trash } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, off, push, serverTimestamp, set, update, remove, runTransaction } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useToast } from '@/hooks/use-toast';
 
 // Debounce function
 const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
@@ -44,6 +51,8 @@ export function ChatView() {
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
 
   const isGroupChat = !!groupChat;
   const chatTarget = groupChat || chatPartner;
@@ -212,6 +221,24 @@ export function ChatView() {
     setNewMessage('');
     inputRef.current?.focus();
   };
+  
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!chatId) return;
+    try {
+      await remove(ref(db, `messages/${chatId}/${messageId}`));
+      toast({
+        title: "Message Deleted",
+        description: "The message has been removed.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not delete the message.",
+      });
+    }
+  };
+
 
   const renderTicks = (msg: Message) => {
       if (msg.from !== firebaseUser?.uid) return null;
@@ -283,21 +310,33 @@ export function ChatView() {
             
             return (
               <div key={msg.id} className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
-                <div className={cn(
-                  'p-2 px-3 rounded-lg max-w-[80%] relative shadow-sm', 
-                  isMe 
-                      ? 'bg-[hsl(var(--outgoing-chat-bubble))] rounded-br-none' 
-                      : 'bg-card rounded-bl-none'
-                  )}>
-                    {isGroupChat && !isMe && <p className="text-xs font-semibold text-primary mb-1">{msg.fromName}</p>}
-                    <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
-                    <div className="flex items-center justify-end mt-1 text-right float-right ml-4">
-                      <p className="text-xs text-muted-foreground mr-1">
-                          {msg.ts ? format(new Date(msg.ts), 'p') : '...'}
-                      </p>
-                      {renderTicks(msg)}
+                 <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className={cn(
+                      'p-2 px-3 rounded-lg max-w-[80%] relative shadow-sm cursor-pointer', 
+                      isMe 
+                          ? 'bg-[hsl(var(--outgoing-chat-bubble))] rounded-br-none' 
+                          : 'bg-card rounded-bl-none'
+                      )}>
+                        {isGroupChat && !isMe && <p className="text-xs font-semibold text-primary mb-1">{msg.fromName}</p>}
+                        <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                        <div className="flex items-center justify-end mt-1 text-right float-right ml-4">
+                          <p className="text-xs text-muted-foreground mr-1">
+                              {msg.ts ? format(new Date(msg.ts), 'p') : '...'}
+                          </p>
+                          {renderTicks(msg)}
+                        </div>
                     </div>
-                </div>
+                  </DropdownMenuTrigger>
+                  {isMe && (
+                    <DropdownMenuContent>
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMessage(msg.id)}>
+                        <Trash className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  )}
+                </DropdownMenu>
               </div>
             );
           })}
@@ -322,3 +361,5 @@ export function ChatView() {
     </div>
   );
 }
+
+    
