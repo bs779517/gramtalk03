@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Phone, Send, Video, Users, Check, CheckCheck, Trash } from 'lucide-react';
+import { ArrowLeft, Phone, Send, Video, Users, Check, CheckCheck, Trash, Reply, X } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, off, push, serverTimestamp, set, update, remove, runTransaction } from 'firebase/database';
 import type { Message, UserProfile } from '@/lib/types';
@@ -49,7 +49,9 @@ export function ChatView() {
   const [newMessage, setNewMessage] = useState('');
   const [status, setStatus] = useState('');
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -167,10 +169,7 @@ export function ChatView() {
   
   useEffect(() => {
     setTimeout(() => {
-      const scrollViewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollViewport) {
-        scrollViewport.scrollTop = scrollViewport.scrollHeight;
-      }
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   }, [messages]);
 
@@ -209,6 +208,13 @@ export function ChatView() {
       text: newMessage.trim(),
       ts: serverTimestamp() as any,
       status: 'sent',
+      ...(replyingTo && {
+        replyTo: {
+          messageId: replyingTo.id,
+          messageText: replyingTo.text,
+          messageFrom: replyingTo.fromName,
+        }
+      })
     };
 
     await set(newMessageRef, message);
@@ -219,6 +225,7 @@ export function ChatView() {
     }
 
     setNewMessage('');
+    setReplyingTo(null);
     inputRef.current?.focus();
   };
   
@@ -237,6 +244,15 @@ export function ChatView() {
         description: "Could not delete the message.",
       });
     }
+  };
+
+  const handleReplyMessage = (message: Message) => {
+    setReplyingTo(message);
+    inputRef.current?.focus();
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
   };
 
 
@@ -318,6 +334,12 @@ export function ChatView() {
                           ? 'bg-[hsl(var(--outgoing-chat-bubble))] rounded-br-none' 
                           : 'bg-card rounded-bl-none'
                       )}>
+                        {msg.replyTo && (
+                            <div className="p-2 mb-1 rounded-md bg-black/5 border-l-2 border-primary">
+                                <p className="font-bold text-primary text-sm">{msg.replyTo.messageFrom}</p>
+                                <p className="text-sm text-muted-foreground truncate">{msg.replyTo.messageText}</p>
+                            </div>
+                        )}
                         {isGroupChat && !isMe && <p className="text-xs font-semibold text-primary mb-1">{msg.fromName}</p>}
                         <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                         <div className="flex items-center justify-end mt-1 text-right float-right ml-4">
@@ -328,22 +350,36 @@ export function ChatView() {
                         </div>
                     </div>
                   </DropdownMenuTrigger>
-                  {isMe && (
-                    <DropdownMenuContent>
+                  <DropdownMenuContent>
+                     <DropdownMenuItem onClick={() => handleReplyMessage(msg)}>
+                        <Reply className="mr-2 h-4 w-4" />
+                        <span>Reply</span>
+                      </DropdownMenuItem>
+                    {isMe && (
                       <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMessage(msg.id)}>
                         <Trash className="mr-2 h-4 w-4" />
                         <span>Delete</span>
                       </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  )}
+                    )}
+                  </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             );
           })}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
       <footer className="p-2 border-t bg-secondary">
+        {replyingTo && (
+            <div className="p-2 mb-2 rounded-md bg-background border-l-4 border-primary relative">
+                <p className="font-bold text-primary">Replying to {replyingTo.fromName}</p>
+                <p className="text-sm text-muted-foreground truncate">{replyingTo.text}</p>
+                <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={cancelReply}>
+                    <X className="h-4 w-4"/>
+                </Button>
+            </div>
+        )}
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Input
             ref={inputRef}

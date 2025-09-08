@@ -30,6 +30,11 @@ export interface Message {
   text: string;
   ts: number;
   status?: 'sent' | 'delivered' | 'read';
+  replyTo?: {
+    messageId: string;
+    messageText: string;
+    messageFrom: string;
+  };
 }
 
 export interface FriendRequest {
