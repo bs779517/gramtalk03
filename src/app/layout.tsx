@@ -8,9 +8,6 @@ import { AppProvider } from '@/context/app-provider';
 export const metadata: Metadata = {
   title: 'GramTalk',
   description: 'A modern chat application.',
-  icons: {
-    icon: '',
-  },
 };
 
 export default function RootLayout({
