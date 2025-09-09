@@ -12,7 +12,7 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, off, remove, update } from 'firebase/database';
 import type { UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, Edit2, LogOut, MessageSquare, ShieldOff, UserPlus, Video } from 'lucide-react';
+import { Camera, Edit2, LogOut, MessageSquare, ShieldOff, UserPlus, Video, Settings } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
@@ -244,51 +244,6 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
                  </Button>}
               </AccordionContent>
             </AccordionItem>
-            
-            {isMyProfile && (
-              <AccordionItem value="privacy">
-                <AccordionTrigger>Privacy Settings</AccordionTrigger>
-                <AccordionContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="online-status">Show Online Status</Label>
-                    <Switch id="online-status" checked={onlineStatus} onCheckedChange={setOnlineStatus} />
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="privacy-photo">Who can see my profile photo?</Label>
-                      <Select value={privacy.profilePhoto} onValueChange={(v) => setPrivacy(p => ({...p, profilePhoto: v as any}))}>
-                        <SelectTrigger id="privacy-photo"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="everyone">Everyone</SelectItem>
-                          <SelectItem value="contacts">My Contacts</SelectItem>
-                          <SelectItem value="nobody">Nobody</SelectItem>
-                        </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="privacy-about">Who can see my about info?</Label>
-                      <Select value={privacy.about} onValueChange={(v) => setPrivacy(p => ({...p, about: v as any}))}>
-                        <SelectTrigger id="privacy-about"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="everyone">Everyone</SelectItem>
-                          <SelectItem value="contacts">My Contacts</SelectItem>
-                          <SelectItem value="nobody">Nobody</SelectItem>
-                        </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="privacy-lastseen">Who can see my last seen?</Label>
-                      <Select value={privacy.lastSeen} onValueChange={(v) => setPrivacy(p => ({...p, lastSeen: v as any}))}>
-                        <SelectTrigger id="privacy-lastseen"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="everyone">Everyone</SelectItem>
-                          <SelectItem value="contacts">My Contacts</SelectItem>
-                          <SelectItem value="nobody">Nobody</SelectItem>
-                        </SelectContent>
-                      </Select>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
 
             {isMyProfile && (
               <AccordionItem value="blocked">
@@ -335,3 +290,4 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
 
     
 
+    

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2, Search, Loader2 } from 'lucide-react';
+import { MoreVertical, UserPlus, Phone, Video, MessageSquare, Users, PlusCircle, Wand2, Search, Loader2, Settings } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { onValue, ref, off, query, orderByChild, equalTo, remove, set, update, get, startAt, endAt } from 'firebase/database';
 import type { UserProfile, FriendRequest, CallHistoryItem, Group } from '@/lib/types';
@@ -16,9 +16,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import CreateGroupModal from '../modals/create-group-modal';
 import { useToast } from '@/hooks/use-toast';
+import { SettingsView } from './settings-view';
 
 export function MainView() {
-  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat, allUsers, setProfileToView } from useApp();
+  const { firebaseUser, profile, showModal, setActiveView, setChatPartner, startCall, setGroupChat, allUsers, setProfileToView } = useApp();
   const [activeTab, setActiveTab] = useState('chats');
   const [contacts, setContacts] = useState<UserProfile[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -364,6 +365,8 @@ export function MainView() {
             )}
           </div>
         );
+        case 'settings':
+            return <SettingsView onBack={() => setActiveTab('chats')} />;
       default:
         return null;
     }
@@ -372,7 +375,7 @@ export function MainView() {
   return (
     <div className="flex flex-col h-full bg-background">
       <header className="bg-primary text-primary-foreground p-4 flex justify-between items-center shadow-md">
-        <h1 className="text-xl font-bold">GramTalk</h1>
+        <h1 className="text-xl font-bold">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={() => showModal('addFriend')}>
             <UserPlus />
@@ -397,6 +400,7 @@ export function MainView() {
         <NavButton tabName="groups" icon={<Users />} label="Groups" />
         <NavButton tabName="updates" icon={<Wand2 />} label="Updates" />
         <NavButton tabName="calls" icon={<Phone />} label="Calls" />
+        <NavButton tabName="settings" icon={<Settings />} label="Settings" />
       </div>
 
       {profile && allUsers && (
