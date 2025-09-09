@@ -24,7 +24,8 @@ import {
   Brush,
   Save,
   Languages,
-  Info
+  Info,
+  ShieldOff
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 
