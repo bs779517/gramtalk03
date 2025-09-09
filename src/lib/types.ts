@@ -9,13 +9,18 @@ export interface UserProfile {
   username: string;
   email: string;
   photoURL?: string | null;
+  coverPhotoURL?: string | null;
   bio?: string;
+  location?: string;
+  gender?: string;
+  dob?: string;
   lastSeen?: number;
   onlineStatus?: 'online' | 'offline';
   privacy?: {
     profilePhoto: 'everyone' | 'contacts' | 'nobody';
     about: 'everyone' | 'contacts' | 'nobody';
     lastSeen: 'everyone' | 'contacts' | 'nobody';
+    profileVisibility: 'public' | 'friends' | 'private';
   };
   blocked?: Record<string, true>;
   contacts?: Record<string, true>;

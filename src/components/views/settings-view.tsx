@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import {
   User,
   Shield,
@@ -25,7 +24,11 @@ import {
   Save,
   Languages,
   Info,
-  ShieldOff
+  ShieldOff,
+  UserCheck,
+  Lock,
+  Camera,
+  Users
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 
@@ -34,18 +37,23 @@ interface SettingsViewProps {
 }
 
 const SettingsListItem = ({ icon, title, description, action }: { icon: React.ReactNode; title: string; description?: string; action?: React.ReactNode }) => (
-    <div className="flex items-center py-3">
+    <div className="flex items-center py-3.5">
       <div className="mr-4 text-primary">{icon}</div>
       <div className="flex-grow">
         <p className="font-medium">{title}</p>
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
       </div>
-      {action && <div>{action}</div>}
+      {action && <div className="ml-4">{action}</div>}
     </div>
 );
 
 export function SettingsView({ onBack }: SettingsViewProps) {
-  const { logout } = useApp();
+  const { logout, showModal, setProfileToView, profile } = useApp();
+
+  const handleEditProfile = () => {
+    setProfileToView(profile);
+    showModal('profileView');
+  }
 
   return (
     <ScrollArea className="h-full">
@@ -58,12 +66,14 @@ export function SettingsView({ onBack }: SettingsViewProps) {
             <CardDescription>Manage your profile and account settings.</CardDescription>
           </CardHeader>
           <CardContent>
-            <SettingsListItem icon={<Info />} title="Edit Profile" description="Name, username, DP, bio" action={<ChevronRight />} />
+            <button className="w-full text-left" onClick={handleEditProfile}>
+              <SettingsListItem icon={<Info />} title="Edit Profile" description="Name, username, DP, bio" action={<ChevronRight />} />
+            </button>
             <Separator />
-            <SettingsListItem icon={<User />} title="Phone/Email" description="Change your contact info" action={<ChevronRight />} />
+            <SettingsListItem icon={<User />} title="Change Username / Display Name" action={<ChevronRight />} />
             <Separator />
-            <SettingsListItem icon={<FileText />} title="Change Password" action={<ChevronRight />} />
-            <Separator />
+            <SettingsListItem icon={<Lock />} title="Change Password" action={<ChevronRight />} />
+             <Separator />
             <SettingsListItem icon={<LogOut />} title="Logout" action={<Button variant="outline" size="sm" onClick={logout}>Logout</Button>} />
             <Separator />
             <SettingsListItem icon={<Trash2 className="text-destructive"/>} title="Delete Account" description="This action is permanent" action={<Button variant="destructive" size="sm">Delete</Button>} />
@@ -77,23 +87,34 @@ export function SettingsView({ onBack }: SettingsViewProps) {
             <CardDescription>Control who can see your info and secure your account.</CardDescription>
           </CardHeader>
           <CardContent>
+             <SettingsListItem icon={<UserCheck />} title="Profile visibility" description="Public" action={
+              <Select defaultValue="public">
+                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="friends">Friends</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                </SelectContent>
+              </Select>
+            }/>
+            <Separator />
             <SettingsListItem icon={<Info />} title="Last Seen / Online Status" action={<Switch defaultChecked />} />
             <Separator />
             <SettingsListItem icon={<MessageSquare />} title="Read Receipts (Blue Ticks)" action={<Switch defaultChecked />} />
             <Separator />
-            <SettingsListItem icon={<User />} title="Who can message me" action={
+             <SettingsListItem icon={<User />} title="Who can send friend requests" action={
               <Select defaultValue="everyone">
                 <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="everyone">Everyone</SelectItem>
-                  <SelectItem value="contacts">Contacts</SelectItem>
+                  <SelectItem value="friends_of_friends">Friends of friends</SelectItem>
                 </SelectContent>
               </Select>
             }/>
             <Separator />
             <SettingsListItem icon={<ShieldOff />} title="Blocked Users" action={<ChevronRight />} />
-            <Separator />
-             <SettingsListItem icon={<FileText />} title="Two-Factor Authentication" description="Off" action={<ChevronRight />} />
+             <Separator />
+             <SettingsListItem icon={<Lock />} title="Two-Factor Authentication" description="Off" action={<ChevronRight />} />
              <Separator />
              <SettingsListItem icon={<Database />} title="Active Sessions" description="Manage logged in devices" action={<ChevronRight />} />
           </CardContent>
@@ -108,8 +129,6 @@ export function SettingsView({ onBack }: SettingsViewProps) {
                 <SettingsListItem icon={<Save />} title="Chat Backup & Restore" action={<ChevronRight />} />
                 <Separator />
                 <SettingsListItem icon={<Trash2 />} title="Clear All Chats" action={<Button variant="outline" size="sm">Clear</Button>} />
-                <Separator />
-                <SettingsListItem icon={<Bell />} title="Mute Notifications" action={<Switch />} />
                 <Separator />
                 <SettingsListItem icon={<Brush />} title="Wallpaper & Chat Theme" action={<ChevronRight />} />
                 <Separator />
@@ -132,9 +151,11 @@ export function SettingsView({ onBack }: SettingsViewProps) {
                 <CardTitle className="flex items-center gap-2"><Bell /> Notifications</CardTitle>
             </CardHeader>
             <CardContent>
-                 <SettingsListItem icon={<MessageSquare />} title="Message Notifications" action={<Switch defaultChecked />} />
+                 <SettingsListItem icon={<MessageSquare />} title="Push Notifications" action={<Switch defaultChecked />} />
                  <Separator />
-                 <SettingsListItem icon={<Users />} title="Group Notifications" action={<Switch defaultChecked />} />
+                 <SettingsListItem icon={<User />} title="Likes Notifications" action={<Switch defaultChecked />} />
+                 <Separator />
+                 <SettingsListItem icon={<Users />} title="Comments Notifications" action={<Switch defaultChecked />} />
                  <Separator />
                  <SettingsListItem icon={<Bell />} title="Sound & Vibration" action={<ChevronRight />} />
             </CardContent>
@@ -144,9 +165,9 @@ export function SettingsView({ onBack }: SettingsViewProps) {
          <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Palette /> Appearance</CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent>
-                 <SettingsListItem icon={<Brush />} title="Dark Mode" action={
+                 <SettingsListItem icon={<Brush />} title="Theme" action={
                     <Select defaultValue="auto">
                         <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -165,9 +186,9 @@ export function SettingsView({ onBack }: SettingsViewProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Database /> Data & Storage</CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent>
-                 <SettingsListItem icon={<User />} title="Media Auto-Download" action={<ChevronRight />} />
+                 <SettingsListItem icon={<Camera />} title="Media Auto-Download" action={<ChevronRight />} />
                  <Separator />
                  <SettingsListItem icon={<Database />} title="Storage Usage" action={<ChevronRight />} />
                  <Separator />
@@ -179,7 +200,7 @@ export function SettingsView({ onBack }: SettingsViewProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><HelpCircle /> Help & Legal</CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent>
                  <SettingsListItem icon={<HelpCircle />} title="FAQ / Help Center" action={<ChevronRight />} />
                  <Separator />
