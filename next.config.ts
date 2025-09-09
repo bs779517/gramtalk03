@@ -25,20 +25,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // This will prevent Next.js from automatically generating a favicon,
-  // which was causing the "Not Found" error.
-  reactStrictMode: true,
   experimental: {
     missingSuspenseWithCSRBailout: false,
-  },
-  // Disable favicon generation
-  devIndicators: {
-    buildActivity: true,
-    buildActivityPosition: 'bottom-right',
-  },
-  compiler: {
-    // Disable favicon generation
-    styledJsx: true,
   },
 };
 
