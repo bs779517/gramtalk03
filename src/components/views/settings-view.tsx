@@ -24,13 +24,14 @@ import {
   Save,
   Languages,
   Info,
-  ShieldOff,
   UserCheck,
   Lock,
   Camera,
-  Users
+  Users,
+  ShieldOff
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
+
 
 interface SettingsViewProps {
   onBack: () => void;
@@ -149,7 +150,7 @@ export function SettingsView({ onBack }: SettingsViewProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Bell /> Notifications</CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent>
                  <SettingsListItem icon={<MessageSquare />} title="Push Notifications" action={<Switch defaultChecked />} />
                  <Separator />
