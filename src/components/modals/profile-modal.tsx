@@ -101,6 +101,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   const handleBlock = async () => {
       if (!firebaseUser || isMyProfile || !profile) return;
       try {
+        const isBlockedByMe = myProfile?.blocked && profile && myProfile.blocked[profile.uid];
         const path = isBlockedByMe ? `users/${firebaseUser.uid}/blocked/${profile.uid}` : `users/${firebaseUser.uid}/blocked`;
         if (isBlockedByMe) {
             await remove(ref(db, path));
@@ -128,6 +129,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
   if (!profile || !myProfile) return null;
 
   const finalCoverPhoto = (isMyProfile && newCoverPhoto) ? newCoverPhoto : profile.coverPhotoURL;
+  const finalProfilePhoto = (isMyProfile && newPhoto) ? newPhoto : profile.photoURL;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -145,11 +147,11 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
           
           <input type="file" ref={photoInputRef} onChange={(e) => handlePhotoUpload(e, 'profile')} accept="image/*" className="hidden" />
           <div className="absolute top-16 left-1/2 -translate-x-1/2">
-             <Avatar className="h-24 w-24 border-4 border-background cursor-pointer relative group">
-              <AvatarImage src={(isMyProfile && newPhoto) ? newPhoto : profile.photoURL ?? undefined} alt={profile.name} />
+             <Avatar className="h-24 w-24 border-4 border-background cursor-pointer relative group" onClick={() => isMyProfile && isEditing && photoInputRef.current?.click()}>
+              <AvatarImage src={finalProfilePhoto ?? undefined} alt={profile.name} />
               <AvatarFallback className="text-4xl">{profile.name ? profile.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                {isMyProfile && isEditing && (
-                <div onClick={() => photoInputRef.current?.click()} className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                   <Camera className="text-white h-8 w-8" />
                 </div>
                )}
@@ -182,26 +184,24 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
         </div>
 
         <div className="p-4 space-y-4">
+          {isMyProfile && isEditing ? (
+            <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Your bio..." />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center">{bio || 'No bio yet.'}</p>
+          )}
+          <div className="space-y-2 text-sm text-muted-foreground">
             {isMyProfile && isEditing ? (
-                <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Your bio..." />
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Your location" />
+              </div>
             ) : (
-                 <p className="text-sm text-muted-foreground text-center">{bio || 'No bio yet.'}</p>
+              location && <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {location}</div>
             )}
-
-            <div className="space-y-2 text-sm text-muted-foreground">
-                 {isMyProfile && isEditing ? (
-                    <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Your location" />
-                    </div>
-                ) : (
-                    location && <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {location}</div>
-                )}
-                {profile.dob && <div className="flex items-center gap-2"><Cake className="h-4 w-4" /> {profile.dob}</div>}
-                {profile.gender && <div className="flex items-center gap-2"><VenetianMask className="h-4 w-4" /> {profile.gender}</div>}
-            </div>
-
-             {isBlockedByMe && <p className="text-center text-red-500 text-sm font-bold">You have blocked this user.</p>}
+            {profile.dob && <div className="flex items-center gap-2"><Cake className="h-4 w-4" /> {profile.dob}</div>}
+            {profile.gender && <div className="flex items-center gap-2"><VenetianMask className="h-4 w-4" /> {profile.gender}</div>}
+          </div>
+          {isBlockedByMe && <p className="text-center text-red-500 text-sm font-bold">You have blocked this user.</p>}
         </div>
 
         {isMyProfile ? (
@@ -235,3 +235,5 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
     </Dialog>
   );
 }
+
+    
