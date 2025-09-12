@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 
-
 interface SettingsViewProps {
   onBack: () => void;
 }
@@ -117,10 +116,10 @@ export function SettingsView({ onBack }: SettingsViewProps) {
             }/>
             <Separator />
             <SettingsListItem icon={<ShieldOff />} title="Blocked Users" action={<ChevronRight />} />
-             <Separator />
-             <SettingsListItem icon={<Lock />} title="Two-Factor Authentication" description="Off" action={<ChevronRight />} />
-             <Separator />
-             <SettingsListItem icon={<Database />} title="Active Sessions" description="Manage logged in devices" action={<ChevronRight />} />
+            <Separator />
+            <SettingsListItem icon={<Lock />} title="Two-Factor Authentication" description="Off" action={<ChevronRight />} />
+            <Separator />
+            <SettingsListItem icon={<Database />} title="Active Sessions" description="Manage logged in devices" action={<ChevronRight />} />
           </CardContent>
         </Card>
         
