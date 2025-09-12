@@ -28,7 +28,7 @@ import {
   Lock,
   Camera,
   Users,
-  ShieldOff
+  ShieldOff,
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 
@@ -48,13 +48,16 @@ const SettingsListItem = ({ icon, title, description, action }: { icon: React.Re
     </div>
 );
 
+
 export function SettingsView({ onBack }: SettingsViewProps) {
   const { logout, showModal, setProfileToView, profile } = useApp();
 
   const handleEditProfile = () => {
-    setProfileToView(profile);
+    if (profile) {
+      setProfileToView(profile);
+    }
     showModal('profileView');
-  }
+  };
 
   return (
     <ScrollArea className="h-full">
