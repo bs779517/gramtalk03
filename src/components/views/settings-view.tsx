@@ -153,7 +153,7 @@ export function SettingsView({ onBack }: SettingsViewProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Bell /> Notifications</CardTitle>
-            </Header>
+            </CardHeader>
             <CardContent>
                  <SettingsListItem icon={<MessageSquare />} title="Push Notifications" action={<Switch defaultChecked />} />
                  <Separator />
