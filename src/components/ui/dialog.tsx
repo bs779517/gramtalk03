@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -8,11 +7,8 @@ import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const Dialog = DialogPrimitive.Root
-
 const DialogTrigger = DialogPrimitive.Trigger
-
 const DialogPortal = DialogPrimitive.Portal
-
 const DialogClose = DialogPrimitive.Close
 
 const DialogOverlay = React.forwardRef<
@@ -28,6 +24,7 @@ const DialogOverlay = React.forwardRef<
     {...props}
   />
 ))
+// use a stable displayName string to avoid possible undefined values
 DialogOverlay.displayName = "DialogOverlay"
 
 const DialogContent = React.forwardRef<
